@@ -1,0 +1,141 @@
+import { NextResponse } from 'next/server';
+import type Stripe from 'stripe';
+import { getStripeClient } from '@/lib/stripe';
+import { createAdminClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/webhooks/stripe
+ *
+ * IMPORTANT: Next.js 14 App Router — do NOT JSON.parse before verifying.
+ * Read raw body via request.text(), then pass to stripe.webhooks.constructEvent().
+ */
+export async function POST(request: Request) {
+    const rawBody = await request.text();
+    const signature = request.headers.get('stripe-signature');
+
+    if (!signature) {
+        return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+    }
+
+    let event: Stripe.Event;
+
+    try {
+        event = getStripeClient().webhooks.constructEvent(
+            rawBody,
+            signature,
+            process.env.STRIPE_WEBHOOK_SECRET!,
+        );
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[stripe-webhook] Signature verification failed:', message);
+        return NextResponse.json({ error: `Webhook signature verification failed: ${message}` }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+
+    try {
+        switch (event.type) {
+            // ── Subscription created / payment succeeded ───────────────────────
+            case 'checkout.session.completed': {
+                const session = event.data.object as Stripe.Checkout.Session;
+
+                const userId = session.metadata?.userId;
+                const plan = session.metadata?.plan;
+
+                if (!userId || !plan) {
+                    console.error('[stripe-webhook] Missing userId or plan in session metadata', session.id);
+                    break;
+                }
+
+                await admin
+                    .from('profiles')
+                    .update({
+                        is_subscribed: true,
+                        plan,
+                        stripe_customer_id: session.customer as string,
+                        stripe_subscription_id: session.subscription as string,
+                    })
+                    .eq('id', userId);
+
+                console.log(`[stripe-webhook] checkout.session.completed — userId=${userId} plan=${plan}`);
+                break;
+            }
+
+            // ── Subscription renewed / reactivated ─────────────────────────────
+            case 'customer.subscription.updated': {
+                const subscription = event.data.object as Stripe.Subscription;
+
+                const userId = subscription.metadata?.userId;
+                const plan = subscription.metadata?.plan;
+
+                if (!userId) break;
+
+                const isActive =
+                    subscription.status === 'active' || subscription.status === 'trialing';
+
+                await admin
+                    .from('profiles')
+                    .update({
+                        is_subscribed: isActive,
+                        plan: isActive ? (plan ?? null) : null,
+                        stripe_subscription_id: subscription.id,
+                    })
+                    .eq('id', userId);
+
+                break;
+            }
+
+            // ── Subscription cancelled / expired ───────────────────────────────
+            case 'customer.subscription.deleted': {
+                const subscription = event.data.object as Stripe.Subscription;
+
+                // Look up the user by their subscription ID (metadata may not be set
+                // if the subscription was created before we started storing it)
+                const userId = subscription.metadata?.userId;
+
+                if (userId) {
+                    await admin
+                        .from('profiles')
+                        .update({
+                            is_subscribed: false,
+                            plan: null,
+                            stripe_subscription_id: null,
+                        })
+                        .eq('id', userId);
+                } else {
+                    // Fall back: find by stripe_subscription_id column
+                    await admin
+                        .from('profiles')
+                        .update({
+                            is_subscribed: false,
+                            plan: null,
+                            stripe_subscription_id: null,
+                        })
+                        .eq('stripe_subscription_id', subscription.id);
+                }
+
+                console.log(`[stripe-webhook] customer.subscription.deleted — subId=${subscription.id}`);
+                break;
+            }
+
+            // ── Invoice payment failed ─────────────────────────────────────────
+            case 'invoice.payment_failed': {
+                const invoice = event.data.object as Stripe.Invoice;
+                console.warn(`[stripe-webhook] invoice.payment_failed — customer=${invoice.customer}`);
+                // Future: send a payment-failure email via Resend
+                break;
+            }
+
+            default:
+                // Unhandled event type — return 200 so Stripe doesn't retry
+                break;
+        }
+    } catch (err) {
+        console.error('[stripe-webhook] Handler error:', err);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+
+    return NextResponse.json({ received: true });
+}

@@ -1,0 +1,30 @@
+# Prevent Roo Code from reading binary, cached, or dependency files to save API tokens
+
+# Package dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js build outputs and caches
+.next/
+out/
+.docusaurus/
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Image/Media directories (unless explicitly editing an image path)
+public/images/
+public/assets/
+
+# Environment files and secrets (Roo shouldn't read raw secrets unless needed)
+.env
+.env.local
+.env*.local
+
+# System & IDE files
+.DS_Store
+.git/
+.vscode/
+.idea/

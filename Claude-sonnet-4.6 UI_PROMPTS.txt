@@ -1,0 +1,447 @@
+=== UI PHASE A: Design System Foundation ===
+
+CONTEXT:
+You are upgrading the UI of QuotePro, an existing, fully-working AI quotation generator for UAE SMB contractors. The product was built over a 7-day sprint and is functional but the UI is basic. You are NOT rebuilding the app. You are adding a professional design-system foundation WITHOUT touching business logic.
+
+Existing stack (DO NOT CHANGE):
+- Next.js 14 App Router (NOT Pages Router)
+- TypeScript throughout
+- Supabase (auth + database + RLS) — untouched
+- Tailwind CSS, mobile-first
+- Vercel deployment
+- Brand primary color: teal (#0D9488), Inter font already loaded
+
+This phase produces NO visible change to end users. It only sets up tokens, config, and a dev-only styleguide. Every later phase depends on this.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. Extend tailwind.config.ts with a full teal scale (50–900), keeping #0D9488 as teal-600:
+   teal: { 50:'#F0FDFA',100:'#CCFBF1',200:'#99F6E4',300:'#5EEAD4',400:'#2DD4BF',500:'#14B8A6',600:'#0D9488',700:'#0F766E',800:'#115E59',900:'#134E4A' }
+2. Define semantic CSS variables in app/globals.css (light theme), and map them in Tailwind via theme.extend.colors so classes like bg-surface, text-secondary, border-default work:
+   --bg #FAFAFA | --surface #FFFFFF | --surface-subtle #F4F4F5 | --border #E4E4E7
+   --text-primary #18181B | --text-secondary #52525B | --text-tertiary #A1A1AA
+   --accent teal-600 | --accent-hover teal-700
+3. Status color tokens (AA-compliant): draft=zinc-500, sent=blue-600, pending=amber-500, won=emerald-600, lost=rose-600. Expose as a TS constant map in lib/ui/status.ts AND as Tailwind-usable classes.
+4. Typography setup:
+   - Configure Inter with font-feature-settings: 'cv11','ss01' in globals.css
+   - Add a .tabular-nums utility (font-variant-numeric: tabular-nums) for money values
+   - Add type-scale utility classes (or a typography helper) for: display, h1, h2, h3, body, body-sm, caption, mono-num — with the exact sizes/weights below
+5. Spacing/radius/shadow tokens in tailwind.config.ts:
+   - borderRadius: lg=8px (inputs/buttons), xl=12px (cards), 2xl=16px (modals/sheets)
+   - boxShadow: card='0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)', pop='0 4px 12px rgba(0,0,0,0.08)', modal='0 20px 40px rgba(0,0,0,0.16)'
+6. Install and configure lucide-react for icons (standard sizes: 16 inline, 20 in buttons, 24 in empty states).
+7. Install class composition helpers: clsx + tailwind-merge. Create lib/ui/cn.ts exporting a cn() helper that merges class names.
+8. Dev-only styleguide page at /app/styleguide/page.tsx that renders EVERY token visually: color swatches (all teal shades + semantic + status), every type-scale sample, spacing samples, all three shadows, all radii, and a sample of lucide icons at each size. This is your visual-regression reference.
+
+TYPE SCALE (mobile-first, exact):
+| token    | size/line-height        | weight | use                |
+| display  | 32/40 (→40/48 on md)    | 700    | landing hero only  |
+| h1       | 24/32                   | 700    | page titles        |
+| h2       | 20/28                   | 600    | section headers    |
+| h3       | 16/24                   | 600    | card titles        |
+| body     | 16/24                   | 400    | default text       |
+| body-sm  | 14/20                   | 400    | secondary text     |
+| caption  | 12/16                   | 500    | labels, badges     |
+| mono-num | 16/24 (tabular)         | 500    | money values       |
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── app/
+│   ├── globals.css                (add CSS variables + base typography + utilities)
+│   └── styleguide/
+│       └── page.tsx               (dev-only token reference)
+├── lib/
+│   └── ui/
+│       ├── cn.ts                  (clsx + tailwind-merge helper)
+│       └── status.ts             (status color map)
+├── tailwind.config.ts            (extend colors, radius, shadows, fonts)
+└── package.json                  (add lucide-react, clsx, tailwind-merge)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Use CSS variables for semantic roles so a dark theme can be added later without refactor.
+- The styleguide page must be reachable only in development OR clearly marked internal; do not link it from user-facing nav.
+- Do NOT remove or rename the existing teal-600 usage — keep #0D9488 mapped to teal-600 so existing classes keep working.
+- Pin exact dependency versions.
+- mono-num and tabular-nums must visually align digits in a column when tested with AED amounts of different lengths.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT build the Button/Input/Card components yet (Phase B)
+- Do NOT redesign any user-facing page
+- Do NOT add Radix or Framer Motion yet
+- Do NOT touch Supabase, Stripe, PDF, geo, or any API route
+- Do NOT change any business logic
+
+OUTPUT FORMAT:
+Working TypeScript + CSS + config. After this phase: the app looks unchanged to users, but /app/styleguide renders the complete token system with zero inconsistencies, and cn() + lucide-react + the full teal scale are available project-wide.
+
+---
+
+=== UI PHASE B: Core Component Library ===
+
+CONTEXT:
+Continuing the QuotePro UI upgrade. Phase A (tokens, tailwind config, globals.css, lucide-react, cn() helper, /app/styleguide) is complete. Now build a consistent, reusable component library and migrate the existing ad-hoc components to it. Business logic stays untouched.
+
+Stack unchanged: Next.js 14 App Router, TypeScript, Tailwind, Supabase, Vercel.
+
+NEW DEPENDENCIES FOR THIS PHASE:
+- @radix-ui/react-select, @radix-ui/react-dialog, @radix-ui/react-accordion, @radix-ui/react-dropdown-menu
+- class-variance-authority (optional, for variant APIs)
+Pin exact versions.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. Button — components/ui/Button.tsx
+   - variants: primary (teal-600 bg, white text), secondary (white bg, --border, text-primary), ghost (transparent), danger (rose-600)
+   - sizes: sm (h-9), md (h-11), lg (h-12; full-width on mobile via prop)
+   - loading prop: spinner replaces label, width preserved (no layout shift), auto-disabled
+   - icon and iconRight slots (lucide)
+   - focus ring: ring-2 ring-teal-500 ring-offset-2
+   - active state: scale-[0.98] + darker bg
+2. Input / Textarea / Select — components/ui/Input.tsx, Textarea.tsx, Select.tsx
+   - label above (text-secondary, caption size)
+   - Input: h-11, rounded-lg, border --border; focus border-teal-500 + ring-2 ring-teal-100
+   - error state: border-rose-500, helper text below in rose, aria-invalid, aria-describedby
+   - prefix/suffix support (e.g., "AED" prefix inside the amount input)
+   - Textarea: auto-grow option, optional character counter
+   - Select: built on @radix-ui/react-select (styled), NOT native; supports icons per option
+3. Card — components/ui/Card.tsx with Card, CardHeader, CardBody, CardFooter
+   - 1px --border + shadow-card, rounded-xl, bg-surface
+   - interactive prop: hover lifts border to teal + slight shadow increase
+4. Badge — components/ui/Badge.tsx
+   - soft tinted bg + matching text (e.g., won = bg-emerald-50 text-emerald-700)
+   - optional 6px leading dot
+   - status variant that reads from lib/ui/status.ts
+5. Toast — components/ui/Toast.tsx (refine existing Day-7 toast)
+   - slide-up + fade, icon per type (success/error/info), shadow-pop, rounded-xl
+   - supports stacking multiple toasts; auto-dismiss 3000ms; position bottom-center
+6. Skeleton — components/ui/Skeleton.tsx
+   - moving-gradient shimmer (not just pulse); composable boxes
+7. EmptyState — components/ui/EmptyState.tsx
+   - lucide icon inside a teal-50 circle, h3 heading, body-sm description, single primary CTA
+   - replaces the 📋 / 💳 emoji empty states from Day 7
+8. Dialog / Sheet — components/ui/Dialog.tsx + Sheet.tsx
+   - built on @radix-ui/react-dialog
+   - Dialog: centered modal (desktop), rounded-2xl, shadow-modal
+   - Sheet: on mobile, slides up from bottom (use for confirmations + upgrade prompt)
+9. Migrate existing usages: replace ad-hoc buttons/inputs/badges across all current pages (landing, profile, quote builder, quote detail, dashboard, upgrade) with these components. This is mechanical and low-risk — keep all onClick/handlers/logic identical.
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── components/
+│   └── ui/
+│       ├── Button.tsx
+│       ├── Input.tsx
+│       ├── Textarea.tsx
+│       ├── Select.tsx
+│       ├── Card.tsx
+│       ├── Badge.tsx
+│       ├── Toast.tsx
+│       ├── Skeleton.tsx
+│       ├── EmptyState.tsx
+│       ├── Dialog.tsx
+│       └── Sheet.tsx
+├── app/
+│   └── styleguide/
+│       └── page.tsx               (extend: render every component in every state)
+└── package.json                  (add Radix packages, cva)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Use cn() from lib/ui/cn.ts for class composition; use cva for variant maps if adopted.
+- Every interactive component must have all states: default, hover, active, focus, disabled, loading.
+- Radix primitives provide keyboard nav + ARIA — do not reimplement these by hand.
+- The Select component must replace the native Project Type dropdown but keep the SAME value contract (same option values) so the existing form/zod validation is unaffected.
+- When migrating, do not change form field names, validation, or submit handlers. UI swap only.
+- Extend /app/styleguide to render each component in all variants/sizes/states for regression reference.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT build AppShell / nav yet (Phase C)
+- Do NOT add Framer Motion / page transitions yet (Phase D)
+- Do NOT redesign page layouts (only swap primitives in place)
+- Do NOT touch APIs, Supabase, Stripe, PDF, or geo logic
+
+OUTPUT FORMAT:
+Working TypeScript. After this phase: components/ui/* exists and is documented on /app/styleguide; every page renders using the new primitives with zero ad-hoc buttons/inputs/badges remaining; all Day 1–7 functionality still works identically.
+
+---
+
+=== UI PHASE C: App Shell & Navigation ===
+
+CONTEXT:
+Continuing the QuotePro UI upgrade. Phases A (tokens) and B (component library) are complete. Now add a cohesive application shell and navigation so the product feels like one consistent app instead of separate pages.
+
+Stack unchanged: Next.js 14 App Router, TypeScript, Tailwind, Supabase, Vercel.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. AppShell — components/layout/AppShell.tsx
+   - sticky top bar (logo left, plan/account on right)
+   - content container with consistent horizontal padding: px-4 mobile, px-6 md, px-8 lg
+   - max-width: max-w-3xl for form pages, max-w-5xl for dashboard/list pages (configurable via prop)
+   - wraps all /app/* routes (apply via app/(app) layout or the existing authenticated layout)
+2. PageHeader — components/layout/PageHeader.tsx
+   - title (h1) + optional subtitle (body-sm, text-secondary) + right-aligned action slot
+   - used on every /app/* page for consistency
+3. Mobile BottomNav — components/layout/BottomNav.tsx
+   - fixed bottom tab bar with 4 tabs: Dashboard, New Quote, Clients, Account
+   - lucide icons + caption labels; active tab in teal-600
+   - safe-area padding: pb-[env(safe-area-inset-bottom)]
+   - visible only on small screens
+4. Desktop Sidebar — components/layout/Sidebar.tsx
+   - same 4 destinations as a left sidebar on md+ screens
+   - BottomNav and Sidebar share one nav-config source so links never drift
+5. Account/plan area in top bar:
+   - show plan badge (Free/Starter/Growth) using Badge; clicking links to /app/upgrade
+   - account menu via @radix-ui/react-dropdown-menu (Profile, Sign out)
+6. Wire navigation into the existing authenticated route group so every /app/* page gets the shell automatically. Public routes (/, /quote/[token], auth) do NOT get the app shell.
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── components/
+│   └── layout/
+│       ├── AppShell.tsx
+│       ├── PageHeader.tsx
+│       ├── BottomNav.tsx
+│       ├── Sidebar.tsx
+│       └── nav-config.ts          (single source of nav items)
+└── app/
+    └── (app)/
+        └── layout.tsx             (wrap authenticated routes in AppShell)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Use the existing auth/session check; do not change auth logic — only wrap the layout.
+- Active route detection via usePathname().
+- BottomNav must not overlap content: add bottom padding to the content area equal to nav height + safe area on mobile.
+- "Clients" tab: if no clients page exists yet, link it to a simple list derived from existing clients data, or stub it as an EmptyState — do NOT build new client CRUD logic here.
+- Keep public pages (landing, public quote, auth) free of the app shell.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT add motion/page transitions yet (Phase D)
+- Do NOT redesign individual page internals yet (Phase D/E)
+- Do NOT build new backend features for the Clients tab
+- Do NOT touch APIs, Stripe, PDF, geo
+
+OUTPUT FORMAT:
+Working TypeScript. After this phase: every authenticated page shares one shell with a consistent header and padding; mobile shows a bottom tab bar with safe-area handling; desktop shows a sidebar; public pages are unaffected. The app now feels cohesive.
+
+---
+
+=== UI PHASE D: Core Flow Polish (Builder → Edit → Dashboard) ===
+
+CONTEXT:
+Continuing the QuotePro UI upgrade. Phases A–C are complete (tokens, components, app shell). Now polish the three highest-value user screens with motion, skeletons, mobile-friendly layouts, and the signature staged loader. Business logic and API contracts stay identical.
+
+Stack unchanged: Next.js 14 App Router, TypeScript, Tailwind, Supabase, Vercel.
+
+NEW DEPENDENCY:
+- framer-motion (pin exact version). Must respect prefers-reduced-motion.
+
+MOTION RULES (apply throughout):
+- Durations: 150ms micro, 250ms transitions, 350ms sheets/modals. Never longer.
+- Easing: ease-out for enters, ease-in for exits.
+- Disable all non-essential motion when prefers-reduced-motion is set.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. Page transitions: fade + 8px upward slide on route change within /app/* (do not break scroll position or data fetching).
+2. Quote Builder /app/quotes/new — redesign internals only (keep form fields, names, zod validation, submit handler):
+   - single-column Card, generous spacing, PageHeader "New Quote"
+   - Project Type via the Phase-B Radix Select with an icon per type
+   - Amount field with "AED" prefix inside the input
+   - Textarea auto-grows; character counter toward the min-20 requirement with subtle progress
+   - sticky bottom action bar on mobile holding full-width "Generate My Quote"
+   - inline validation using the new error states; on submit, scroll to first error
+3. Staged loader — components/quotes/GenerationLoader.tsx (signature moment):
+   - replaces the plain spinner during quote generation
+   - cycles through staged labels over ~10s: "Analyzing project…" → "Pricing line items…" → "Applying 5% VAT…" → "Finalizing quote…"
+   - purely visual; does NOT change the actual API call or its timeout
+   - if the API returns/errors early, stop the loader immediately and show result/error
+4. Editable Quote /app/quotes/[id] — redesign internals only (keep PATCH save logic + recalculation + PDF generation):
+   - present quote as a document-like Card: header (company + quote number) then a line-items table styled to resemble the final PDF
+   - MOBILE: stack each line item into a mini-card (label/value pairs), NOT a cramped horizontal table
+   - DESKTOP: clean aligned grid/table
+   - editable fields use Phase-B Input with smooth focus; tapping a value transitions to edit mode
+   - right-aligned totals summary using mono-num tabular figures
+   - recalc animation: when subtotal/VAT/total change, briefly flash the number to teal (count-up or AnimatePresence)
+   - line item add/remove animates in/out (height + opacity)
+   - sticky action bar: "Save" (secondary) + "Generate PDF" (primary); after PDF success, reveal Share row (WhatsApp + Copy Link) with a success check animation
+5. Dashboard /app/dashboard — redesign internals only (keep stats API + status update logic):
+   - PageHeader "Your Quotes" + plan badge + usage chip
+   - stats row: 3 refined stat Cards (big mono-num value, caption label, small icon); primary stat (Pipeline Value) gets a subtle teal accent; on mobile stack to 1 col or horizontal scroll (no cramped 3-col)
+   - usage banner: slim progress bar (quotes used / limit), turns amber near the limit; inline, not a heavy box
+   - quote list: interactive Cards showing client, quote number, amount (mono-num), status Badge with dot, relative date ("2 days ago"); Won/Lost actions inside a ⋯ dropdown (Radix) to reduce clutter
+   - matching Skeleton screens on load (stats + list)
+   - EmptyState when no quotes (lucide icon + CTA), replacing the old emoji empty state
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── components/
+│   ├── quotes/
+│   │   ├── GenerationLoader.tsx
+│   │   ├── LineItemCard.tsx        (mobile line-item layout)
+│   │   ├── TotalsSummary.tsx       (animated totals)
+│   │   └── QuoteListItem.tsx
+│   ├── dashboard/
+│   │   ├── StatCard.tsx
+│   │   ├── UsageBanner.tsx
+│   │   └── DashboardSkeleton.tsx
+│   └── motion/
+│       └── PageTransition.tsx
+└── app/
+    ├── quotes/new/page.tsx         (swap internals only)
+    ├── quotes/[id]/page.tsx        (swap internals only)
+    └── dashboard/page.tsx          (swap internals only)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Do NOT change any API route, request shape, response handling, validation schema, recalculation math, or PDF generation. UI/presentation only.
+- The staged loader's stage timing is independent of the real request; the request result always wins.
+- Relative dates: compute client-side (e.g., a small helper) without adding heavy date libraries if avoidable.
+- Keep existing data-fetching (SWR/React Query or whatever Day 4 used) — only swap loading UI to skeletons.
+- All money values use mono-num + tabular-nums and align in columns.
+- Verify reduced-motion disables transitions/flashes.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT redesign the landing page or public quote view yet (Phase E)
+- Do NOT change pricing/geo/Stripe logic
+- Do NOT add new backend endpoints
+- Do NOT alter the quote JSON schema
+
+OUTPUT FORMAT:
+Working TypeScript. After this phase: the core flow (new → edit → PDF → share) feels fast and premium — skeletons on load, staged loader during generation, animated live totals, mobile line-item cards, and a polished dashboard — with zero changes to underlying behavior.
+
+---
+
+=== UI PHASE E: External-Facing Surfaces (Landing, Public Quote, Pricing) ===
+
+CONTEXT:
+Continuing the QuotePro UI upgrade. Phases A–D are complete. Now elevate the surfaces that strangers and clients see: the landing page, the public quote view, and the upgrade/pricing cards. These drive conversion and word-of-mouth, so they must look premium. Geo-pricing logic is UNCHANGED — only presentation improves.
+
+Stack unchanged: Next.js 14 App Router, TypeScript, Tailwind, Supabase, Vercel.
+- Landing + Upgrade keep using getPricing(countryCode) exactly as built in Day 6/7. Do NOT hardcode prices. Do NOT change geo detection.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. Landing page / (Server Component, geo logic unchanged) — redesign sections:
+   - HERO: display-size heading "Generate professional quotes in 60 seconds", supportive subtext, two CTAs (primary teal "Start Free" + secondary ghost "See How It Works"), trust line with small lucide check icons. Add a product visual: a clean mockup of a generated quote/dashboard inside a phone frame (right on desktop, below on mobile). Use a static image/placeholder slot.
+   - HOW IT WORKS strip: 3 steps (Describe → Generate → Share) with lucide icons and a connecting line.
+   - FEATURES: 3 Cards with lucide icons in tinted circles, hover lift.
+   - PRICING (#pricing): redesigned cards (see item 3); currency still from getPricing(). Highlight Starter (teal top border + "Most Popular" pill).
+   - SOCIAL PROOF: a clean testimonial/stat band (if a real stat exists, show it as a number; otherwise a single tasteful testimonial card).
+   - FAQ: accordion via @radix-ui/react-accordion (smooth expand), content unchanged from Day 7.
+   - FOOTER: structured, multi-column on desktop, teal logo.
+   - Scroll-reveal: subtle fade-up as each section enters viewport (respect reduced-motion).
+2. Public quote view /quote/[token] (public, no auth — logic unchanged) — redesign:
+   - clean document layout with company branding header
+   - mobile-optimized line-item cards (reuse LineItemCard pattern), large legible type
+   - prominent TOTAL in a teal-tinted block; clear terms section
+   - small tasteful "Powered by QuotePro" footer (viral loop)
+   - keep the existing view-tracking call exactly as is
+3. Pricing cards — components/pricing/PricingCard.tsx (shared by landing #pricing and /app/upgrade):
+   - three cards; Starter highlighted (teal top border, "Most Popular" pill, slight scale-up on desktop)
+   - feature lists with lucide check icons; muted dash for not-included items
+   - price from getPricing(): large mono-num amount + small "/month" + correct currency
+4. Upgrade /app/upgrade — redesign internals only (checkout logic unchanged):
+   - use the shared PricingCard
+   - on mobile, when triggered by hitting the quote limit, present Upgrade as a bottom Sheet (Phase-B Sheet) for a native, contextual feel
+   - FAQ accordion reused from landing
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── components/
+│   ├── landing/
+│   │   ├── LandingHero.tsx
+│   │   ├── HowItWorks.tsx
+│   │   ├── FeaturesSection.tsx
+│   │   ├── PricingSection.tsx      (renders PricingCard from getPricing())
+│   │   ├── SocialProof.tsx
+│   │   ├── FAQAccordion.tsx
+│   │   └── Footer.tsx
+│   ├── pricing/
+│   │   └── PricingCard.tsx         (shared landing + upgrade)
+│   └── quotes/
+│       └── PublicQuoteView.tsx     (redesigned read-only layout)
+└── app/
+    ├── page.tsx                    (compose redesigned sections; geo unchanged)
+    ├── quote/[token]/page.tsx      (swap presentation only)
+    └── upgrade/page.tsx            (use shared PricingCard; logic unchanged)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Landing stays a Server Component; do NOT call ipapi.co on the landing page. Keep the cf-ipcountry/cookie/'AE' fallback exactly as built in Day 7.
+- getPricing() remains the single source of truth — never hardcode prices.
+- Public quote page must keep working with no login and keep the viewed_at tracking call.
+- Scroll-reveal and hover effects must degrade gracefully with reduced-motion.
+- Use the static phone-frame image as a slot (provide a placeholder asset path); do not block on final artwork.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT change geo detection, getPricing(), Stripe checkout, or webhook logic
+- Do NOT add new pricing tiers or currencies
+- Do NOT touch quote generation or PDF logic
+- Do NOT add the referral feature here (it already exists from Day 7; only restyle if it appears on these pages)
+
+OUTPUT FORMAT:
+Working TypeScript. After this phase: the landing page and public quote view look client-ready and premium; pricing cards are elevated and still geo-correct (AED/PKR/USD); upgrade appears as a native bottom sheet on mobile — all with unchanged business logic.
+
+---
+
+=== UI PHASE F: Final Polish & Quality Sweep ===
+
+CONTEXT:
+Final phase of the QuotePro UI upgrade. Phases A–E are complete. Now finish the remaining surfaces, enforce the quality bar, and run an accessibility + cross-device sweep. No new features, no logic changes.
+
+Stack unchanged: Next.js 14 App Router, TypeScript, Tailwind, Supabase, Vercel.
+
+FEATURES TO BUILD IN THIS PHASE:
+1. Auth flow polish:
+   - centered Card on a soft --bg / gradient background, logo at top
+   - magic-link state machine UI: email input → "Check your inbox" confirmation screen with a mail lucide icon, the entered email shown, and a "Resend" link with a 30s cooldown timer
+   - keep all existing Supabase signInWithOtp logic; only add the confirmation/resend UI states
+2. Profile / Account /app/profile — redesign internals only (keep save logic):
+   - sectioned settings Cards: Personal, Company, Plan
+   - inline-editable fields with a single Save button (or save-on-blur)
+   - Plan section shows current plan + manage/upgrade link
+3. Global feedback consistency:
+   - ensure every async action across the app uses the Phase-B Toast (success green, error rose, info) with bottom-center stacking and 3s auto-dismiss
+   - error copy is human, never technical ("Something went wrong. Please try again." — never raw 500s)
+   - every empty list/section uses EmptyState (lucide icon, heading, description, CTA) — no leftover emoji or bare text
+4. Mobile + touch quality pass (whole app):
+   - all buttons/links min 44x44px touch target
+   - inputs full-width with py-3 px-4 padding
+   - viewport meta: width=device-width, initial-scale=1, maximum-scale=1
+   - scroll-smooth on html; safe-area padding on fixed bottom elements
+5. Accessibility sweep:
+   - every input has a <label>; errors use aria-invalid + aria-describedby
+   - visible focus ring (teal) on all interactive elements; never outline:none without replacement
+   - AA color contrast verified against the Phase-A tokens
+   - Radix primitives provide keyboard nav/ARIA — verify Select, Dialog, Sheet, Accordion, Dropdown are fully keyboard operable
+6. Reduced-motion pass: confirm prefers-reduced-motion disables page transitions, recalc flashes, scroll-reveal, and the staged loader's animation (show a static state instead).
+7. Cross-device test checklist (document results in a short comment/section): iPhone Safari, Android Chrome, Samsung Internet — verify no layout breaks on landing, builder, edit, dashboard, public quote, upgrade.
+
+EXPECTED FOLDER STRUCTURE:
+quotepro/
+├── app/
+│   ├── (auth pages)               (add confirmation/resend UI states)
+│   └── profile/page.tsx           (sectioned settings redesign)
+├── components/
+│   └── auth/
+│       ├── MagicLinkForm.tsx
+│       └── CheckInboxScreen.tsx
+└── (touch ups across existing ui/ and layout/ components as needed)
+
+SPECIFIC IMPLEMENTATION DETAILS:
+- Do NOT change auth, profile-save, or any API logic — only add/polish UI states.
+- The resend cooldown is purely a client-side timer guarding the existing resend call.
+- Reuse Phase-A/B/C components everywhere; do not introduce one-off styles.
+- Keep all Day 1–7 functionality intact: auth, generation, PDF, share, dashboard, free-tier limits, email, geo, Stripe.
+
+WHAT NOT TO BUILD IN THIS PHASE:
+- Do NOT add any new product feature
+- Do NOT refactor backend or API routes
+- Do NOT change the stack or pricing/geo logic
+
+OUTPUT FORMAT:
+Working TypeScript. After this phase: auth has a polished confirmation/resend experience, profile is a clean sectioned settings page, feedback (toasts/empty states) is consistent everywhere, and the app passes a 44px-touch / focus-ring / AA-contrast / reduced-motion / cross-device sweep with no regressions to Day 1–7 functionality.
+
+DEFINITION OF DONE (entire UI upgrade):
+- [ ] /app/styleguide renders the full token + component set with no inconsistencies
+- [ ] Every page uses components/ui/* — zero ad-hoc buttons/inputs/badges
+- [ ] Mobile bottom nav + safe-area on all /app/* routes; desktop sidebar
+- [ ] Core flow (new → edit → PDF → share) feels fast: skeletons, staged loader, animated totals, motion
+- [ ] Landing + public quote view look client-ready and premium
+- [ ] All tables collapse to readable cards on mobile
+- [ ] Focus rings, labels, AA contrast, reduced-motion verified
+- [ ] Tested on iPhone Safari, Android Chrome, Samsung Internet — no breaks
+- [ ] No regression in Day 1–7 functionality (auth, generation, PDF, payments, geo)

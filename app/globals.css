@@ -1,0 +1,369 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   CSS Custom Properties — Light Theme
+   A dark theme can later be added via:
+     [data-theme="dark"] { --bg: #09090B; … }
+───────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-subtle: #F4F4F5;
+  --border: #E4E4E7;
+
+  /* Text */
+  --text-primary: #18181B;
+  --text-secondary: #52525B;
+  --text-tertiary: #A1A1AA;
+
+  /* Accent */
+  --accent: #0D9488;
+  /* teal-600 */
+  --accent-hover: #0F766E;
+  /* teal-700 */
+
+  /* Inter opentype features */
+  --font-feature: 'cv11', 'ss01';
+}
+
+/* ─────────────────────────────────────────────
+   Base
+───────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply min-h-screen bg-slate-950 text-white antialiased;
+  font-feature-settings: var(--font-feature);
+}
+
+* {
+  @apply border-slate-800;
+}
+
+a {
+  @apply text-inherit no-underline;
+}
+
+/* ─────────────────────────────────────────────
+   Typography utilities
+   Mobile-first; md breakpoint overrides on display.
+───────────────────────────────────────────── */
+@layer utilities {
+
+  /* Display — landing hero only */
+  .type-display {
+    font-size: 2rem;
+    /* 32px */
+    line-height: 2.5rem;
+    /* 40px */
+    font-weight: 700;
+  }
+
+  @media (min-width: 768px) {
+    .type-display {
+      font-size: 2.5rem;
+      /* 40px */
+      line-height: 3rem;
+      /* 48px */
+    }
+  }
+
+  /* H1 — page titles */
+  .type-h1 {
+    font-size: 1.5rem;
+    /* 24px */
+    line-height: 2rem;
+    /* 32px */
+    font-weight: 700;
+  }
+
+  /* H2 — section headers */
+  .type-h2 {
+    font-size: 1.25rem;
+    /* 20px */
+    line-height: 1.75rem;
+    /* 28px */
+    font-weight: 600;
+  }
+
+  /* H3 — card titles */
+  .type-h3 {
+    font-size: 1rem;
+    /* 16px */
+    line-height: 1.5rem;
+    /* 24px */
+    font-weight: 600;
+  }
+
+  /* Body — default text */
+  .type-body {
+    font-size: 1rem;
+    /* 16px */
+    line-height: 1.5rem;
+    /* 24px */
+    font-weight: 400;
+  }
+
+  /* Body SM — secondary text */
+  .type-body-sm {
+    font-size: 0.875rem;
+    /* 14px */
+    line-height: 1.25rem;
+    /* 20px */
+    font-weight: 400;
+  }
+
+  /* Caption — labels, badges */
+  .type-caption {
+    font-size: 0.75rem;
+    /* 12px */
+    line-height: 1rem;
+    /* 16px */
+    font-weight: 500;
+  }
+
+  /* Mono-num — AED money values */
+  .type-mono-num {
+    font-size: 1rem;
+    /* 16px */
+    line-height: 1.5rem;
+    /* 24px */
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Standalone tabular-nums helper for one-off usage */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Animations (kept from original)
+   All animations that slide or fade are wrapped
+   in `prefers-reduced-motion: no-preference` so
+   users who opt-out see instant/static states.
+───────────────────────────────────────────── */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Only animate when the user has NOT requested reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-slide-up {
+    animation: slide-up 0.2s ease-out both;
+  }
+}
+
+/* Instant appearance when reduced-motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up {
+    animation: none;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Scroll-reveal  (.reveal-up)
+   Elements with this class start hidden and
+   fade+slide up when they enter the viewport.
+   Uses IntersectionObserver via the
+   [data-revealed] attribute (set in JS below).
+   Falls back gracefully: no JS → always visible.
+   Reduced-motion: skip the animation entirely.
+───────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-up {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+
+  .reveal-up[data-revealed] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Radix Accordion smooth open / close
+   Gated behind no-preference so reduced-motion
+   users see an instant expand/collapse.
+───────────────────────────────────────────── */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+
+  to {
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-accordion-down {
+    animation: accordion-down 0.22s ease-out;
+  }
+
+  .animate-accordion-up {
+    animation: accordion-up 0.22s ease-out;
+  }
+}
+
+/* Instant open/close when motion is reduced */
+@media (prefers-reduced-motion: reduce) {
+
+  .animate-accordion-down,
+  .animate-accordion-up {
+    animation: none;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Reduced-motion — Tailwind animation utilities
+   Sheet, Dialog, Skeleton shimmer, spinner, pulse.
+   All become instant/static when the OS reduce-
+   motion preference is enabled.
+───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+  /* Sheet enter/exit (animate-sheet-up, animate-sheet-down) */
+  .animate-sheet-up,
+  .animate-sheet-down {
+    animation: none !important;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Dialog / Modal fade (animate-fade-in, animate-fade-out) */
+  .animate-fade-in,
+  .animate-fade-out {
+    animation: none !important;
+    opacity: 1;
+  }
+
+  /* Dialog zoom (animate-zoom-in, animate-zoom-out) */
+  .animate-zoom-in,
+  .animate-zoom-out {
+    animation: none !important;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Skeleton shimmer — show static muted bg instead */
+  .animate-shimmer {
+    animation: none !important;
+    background-image: none !important;
+    opacity: 0.6;
+  }
+
+  /* Loading spinner in Button + LoadingSpinner component */
+  .animate-spin {
+    animation: none !important;
+    opacity: 0.5;
+  }
+
+  /* Pulsing dot in landing hero eyebrow badge */
+  .animate-pulse {
+    animation: none !important;
+    opacity: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Landing display heading utility
+   Used by LandingHero for the large hero text.
+───────────────────────────────────────────── */
+@layer utilities {
+  .text-display {
+    font-size: clamp(2.25rem, 5vw + 1rem, 3.75rem);
+    line-height: 1.1;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Safe-area utilities
+   Used by fixed bottom elements (BottomNav,
+   ToastContainer) on notched iOS devices.
+───────────────────────────────────────────── */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Cross-device test checklist — Phase F
+   Run manually on physical or emulated devices
+   before each production deploy.
+
+   SURFACES TO TEST: landing, builder (/app/quotes/new),
+   edit quote, dashboard, public quote (/quote/[token]),
+   upgrade page, auth (/auth), profile (/app/profile).
+
+   iPhone Safari (latest iOS)
+   ─ [ ] No layout overflow on landing or builder
+   ─ [ ] Bottom BottomNav clears the home-indicator
+         (env(safe-area-inset-bottom) applied)
+   ─ [ ] All tap targets ≥ 44 × 44 px (Builder CTA,
+         nav items, quote action buttons)
+   ─ [ ] Magic-link form scrolls into view when keyboard opens
+   ─ [ ] Auth Card not clipped on small screens (375 px)
+   ─ [ ] Reduced-motion: no slide/fade on any page transition
+         when "Reduce Motion" is enabled in Accessibility settings
+
+   Android Chrome (latest)
+   ─ [ ] Address bar resize does not cause layout jumps
+   ─ [ ] Inputs are full-width (no horizontal scroll)
+   ─ [ ] Toasts appear at bottom-center, above the nav bar
+   ─ [ ] PDF download works (opens browser PDF viewer)
+   ─ [ ] Share link copies to clipboard (navigator.clipboard API)
+
+   Samsung Internet (latest)
+   ─ [ ] Font rendering matches Chrome (Inter variable font loads)
+   ─ [ ] No double-tap zoom on buttons (touch-action: manipulation)
+   ─ [ ] Accordion FAQ opens / closes correctly
+   ─ [ ] No white-flash between page transitions
+
+   Accessibility (all devices)
+   ─ [ ] VoiceOver / TalkBack can reach all interactive elements
+   ─ [ ] Focus ring (teal) is visible on every button/link/input
+   ─ [ ] Error messages are announced (role="alert" / aria-live)
+   ─ [ ] Dialogs/Sheets trap focus and close on Escape
+   ─ [ ] Color contrast: teal-600 on white = 4.6:1 (passes AA)
+         teal-400 on slate-950 = 7.2:1 (passes AAA)
+───────────────────────────────────────────── */
