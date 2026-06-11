@@ -335,7 +335,7 @@ function NewQuotePageContent() {
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                                         PDF Template Language
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-400">
+                                    <p className="mt-1 text-sm text-slate-300">
                                         Choose the PDF layout that best matches your client region.
                                     </p>
                                     <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -479,10 +479,6 @@ function NewQuotePageContent() {
                                 )}
 
                                 <GenerationLoader active={isGenerating} />
-
-                                <div className="p-2 mb-4 text-xs font-mono text-red-500 bg-red-100 rounded">
-                                    LIVE FORM STATE - Currency: {watch('currency')} | Tax: {watch('tax_rate')}%
-                                </div>
 
                                 <div className="hidden md:block">
                                     <Button

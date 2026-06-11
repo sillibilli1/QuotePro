@@ -1,4 +1,6 @@
 import type { PublicQuoteResponse } from '@/types';
+import { QuoteActionButtons } from './QuoteActionButtons';
+import { getStatusTokens } from '@/lib/ui/status';
 
 type QuoteData = NonNullable<PublicQuoteResponse['quote']>;
 
@@ -37,6 +39,7 @@ function MetaChip({ label, value }: { label: string; value: string }) {
 
 export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
     const taxRate = quote.tax_rate ?? 5;
+    const statusTokens = getStatusTokens(quote.status);
 
     return (
         <div className="min-h-screen bg-slate-950 px-4 py-8 sm:py-12">
@@ -57,8 +60,8 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Status badge */}
-                        <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-teal-300">
-                            {quote.status}
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusTokens.borderClass} ${statusTokens.bgClass} ${statusTokens.textClass}`}>
+                            {statusTokens.label}
                         </span>
                         {/* Download PDF button */}
                         <a
@@ -185,6 +188,12 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                         </div>
                     </section>
                 </div>
+
+                {/* ── Action buttons ─────────────────────────────────────────────── */}
+                <QuoteActionButtons
+                    token={quote.share_token || ''}
+                    initialStatus={quote.status}
+                />
 
                 {/* ── Powered-by footer (viral loop) ────────────────────────────── */}
                 <div className="py-4 text-center">

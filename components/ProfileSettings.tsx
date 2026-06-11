@@ -27,8 +27,8 @@ const PLAN_BADGE_VARIANT: Record<PlanTier, 'default' | 'primary' | 'success'> = 
 
 const PLAN_DESCRIPTION: Record<PlanTier, string> = {
     free: 'Up to 3 quotes per month.',
-    starter: 'Unlimited quotes · PDF export · Share links.',
-    growth: 'Everything in Starter · Priority support · Analytics.',
+    starter: 'Up to 30 quotes per month · PDF export · Share links',
+    growth: 'Unlimited quotes · PDF export · Share links · Priority support',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────

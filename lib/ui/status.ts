@@ -11,7 +11,7 @@
  * tailwind.config.ts so they are included in the purge manifest.
  */
 
-export type QuoteStatus = 'draft' | 'sent' | 'pending' | 'won' | 'lost';
+export type QuoteStatus = 'draft' | 'sent' | 'pending' | 'accepted' | 'declined' | 'rejected' | 'won' | 'lost';
 
 export interface StatusTokens {
     label: string;
@@ -27,35 +27,56 @@ export interface StatusTokens {
 export const STATUS_MAP: Record<QuoteStatus, StatusTokens> = {
     draft: {
         label: 'Draft',
-        hex: '#71717A',          // zinc-500
+        hex: '#71717A',
         bgClass: 'bg-zinc-100',
         textClass: 'text-zinc-500',
         borderClass: 'border-zinc-300',
     },
     sent: {
         label: 'Sent',
-        hex: '#2563EB',          // blue-600
+        hex: '#2563EB',
         bgClass: 'bg-blue-50',
         textClass: 'text-blue-600',
         borderClass: 'border-blue-300',
     },
     pending: {
         label: 'Pending',
-        hex: '#F59E0B',          // amber-500
+        hex: '#F59E0B',
         bgClass: 'bg-amber-50',
         textClass: 'text-amber-600',
         borderClass: 'border-amber-300',
     },
+    accepted: {
+        label: 'Accepted',
+        hex: '#16A34A',
+        bgClass: 'bg-green-100',
+        textClass: 'text-green-700',
+        borderClass: 'border-green-300',
+    },
+    declined: {
+        label: 'Declined',
+        hex: '#DC2626',
+        bgClass: 'bg-red-100',
+        textClass: 'text-red-700',
+        borderClass: 'border-red-300',
+    },
+    rejected: {
+        label: 'Rejected',
+        hex: '#DC2626',
+        bgClass: 'bg-red-100',
+        textClass: 'text-red-700',
+        borderClass: 'border-red-300',
+    },
     won: {
         label: 'Won',
-        hex: '#059669',          // emerald-600
+        hex: '#059669',
         bgClass: 'bg-emerald-50',
         textClass: 'text-emerald-600',
         borderClass: 'border-emerald-300',
     },
     lost: {
         label: 'Lost',
-        hex: '#E11D48',          // rose-600
+        hex: '#E11D48',
         bgClass: 'bg-rose-50',
         textClass: 'text-rose-600',
         borderClass: 'border-rose-300',

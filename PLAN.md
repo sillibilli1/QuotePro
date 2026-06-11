@@ -1203,6 +1203,47 @@ until the user taps "Confirm & Save."
 | Confirm fails after a good preview (DB error) | Low | Keep draft in state on confirm failure so the user can retry without regenerating. |
 | Double-submit creates duplicate quotes | Low | Disable "Confirm & Save" during the saving state; confirm route is the only write path. |
 ---
+
+---
+## Day 8.5: Client Management (Afternoon Build)
+**Goal:** Build a functional client list page that displays all clients from existing quotes, with search, detail view, and quick quote creation for existing clients.
+**Time:** 3-4 hours
+### What Gets Built
+- Client list page at `/app/clients` with all clients
+- Search/filter by name or company
+- Client detail modal showing quote history
+- Add new client dialog
+- Edit existing client
+- Integration with quote form (select existing client dropdown)
+### Why This Instead of "Coming Soon"
+An empty "coming soon" page makes the product look incomplete. Since client data already exists in the database (created automatically when quotes are made), surfacing it properly adds value immediately. Users can see all their clients, search them, and create repeat quotes faster.
+### What's NOT Included (By Design)
+- Client notes/tags
+- Bulk actions
+- CSV import
+- Custom fields
+- Archive/inactive status
+These are Phase 2 features. The basic version covers 90% of use cases for the first 50 customers.
+### API Routes Created
+- `GET /api/clients` — List all clients with aggregated quote data
+- `POST /api/clients` — Create new client
+- `GET /api/clients/[id]` — Client details
+- `PATCH /api/clients/[id]` — Update client
+- `DELETE /api/clients/[id]` — Delete client (only if no quotes)
+- `GET /api/clients/[id]/quotes` — All quotes for a client
+### Database Changes
+None. The `clients` table already exists and has all required columns. This feature just surfaces existing data properly.
+### Definition of Done
+- [ ] Clients page shows all clients with quote counts and totals
+- [ ] Search filters by name/company in real-time
+- [ ] Click client opens detail modal with quote history
+- [ ] New client can be added via dialog
+- [ ] Existing client can be edited
+- [ ] QuoteForm has dropdown to select existing clients
+- [ ] Empty state shows when no clients exist
+- [ ] Mobile layout is functional
+---
+
 ## Day 9: Multimodal Input (Voice & Vision)
 **Goal:** Allow users to create quotes by speaking (voice input) or photographing documents
 (vision input) instead of typing. A contractor on-site can dictate scope while walking the

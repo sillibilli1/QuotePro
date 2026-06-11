@@ -81,10 +81,11 @@ async function getDashboardStats(userId: string) {
 
     quotes.forEach((q) => {
         const curr = q.currency;
-        if (q.status === 'sent' || q.status === 'pending') {
+        const statusLower = (q.status ?? '').toLowerCase();
+        if (statusLower === 'sent' || statusLower === 'viewed' || statusLower === 'accepted') {
             pipelineByCurrency[curr] = (pipelineByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
         }
-        if (q.status === 'won') {
+        if (statusLower === 'won') {
             wonByCurrency[curr] = (wonByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
         }
     });
