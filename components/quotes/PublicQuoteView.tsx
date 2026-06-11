@@ -36,6 +36,8 @@ function MetaChip({ label, value }: { label: string; value: string }) {
 }
 
 export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
+    const taxRate = quote.tax_rate ?? 5;
+
     return (
         <div className="min-h-screen bg-slate-950 px-4 py-8 sm:py-12">
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -53,10 +55,21 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                             <p className="mt-1 text-sm text-slate-400">📞 {quote.company_phone}</p>
                         )}
                     </div>
-                    {/* Status badge */}
-                    <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-teal-300">
-                        {quote.status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                        {/* Status badge */}
+                        <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-teal-300">
+                            {quote.status}
+                        </span>
+                        {/* Download PDF button */}
+                        <a
+                            href={`/api/quotes/public/${quote.share_token}/generate-pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-full border border-teal-500/50 bg-teal-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-teal-300 transition hover:bg-teal-500/30 hover:border-teal-500/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 motion-reduce:transition-none"
+                        >
+                            📥 Download PDF
+                        </a>
+                    </div>
                 </header>
 
                 {/* ── Meta chips ─────────────────────────────────────────────────── */}
@@ -136,7 +149,7 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                         </p>
                         <ul className="space-y-2 text-sm leading-relaxed text-slate-400">
                             <li>• This quotation is valid for 30 days from the issue date.</li>
-                            <li>• VAT is calculated at 5% in accordance with applicable regulations.</li>
+                            <li>• Tax is calculated at {taxRate}% in accordance with applicable regulations.</li>
                             <li>• Please confirm acceptance to proceed with scheduling and execution.</li>
                         </ul>
                     </section>
@@ -154,7 +167,7 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                                 </dd>
                             </div>
                             <div className="flex justify-between">
-                                <dt className="text-slate-400">VAT 5%</dt>
+                                <dt className="text-slate-400">Tax {taxRate}%</dt>
                                 <dd className="font-medium text-white">
                                     {formatCurrency(quote.vat_5_aed, currencyCode)}
                                 </dd>

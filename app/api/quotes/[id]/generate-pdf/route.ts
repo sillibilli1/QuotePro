@@ -11,7 +11,7 @@ type QueryError = { message: string } | null;
 
 type QuoteRow = Pick<
     Database['public']['Tables']['quotes']['Row'],
-    'id' | 'user_id' | 'client_id' | 'quote_number' | 'status' | 'project_title' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'created_at' | 'pdf_url' | 'line_items'
+    'id' | 'user_id' | 'client_id' | 'quote_number' | 'status' | 'project_title' | 'pdf_mode' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'created_at' | 'pdf_url' | 'line_items' | 'currency' | 'tax_rate'
 > & {
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
@@ -86,7 +86,7 @@ export async function GET(_: Request, context: { params: { id: string } }) {
 
         const { data: quote, error: quoteError } = await quotesTable
             .select(
-                'id, user_id, client_id, quote_number, status, project_title, subtotal_aed, vat_5_aed, total_aed, created_at, pdf_url, line_items, clients(name, company)',
+                'id, user_id, client_id, quote_number, status, project_title, pdf_mode, subtotal_aed, vat_5_aed, total_aed, created_at, pdf_url, line_items, currency, tax_rate, clients(name, company)',
             )
             .eq('id', quoteId)
             .eq('user_id', user.id)
@@ -101,6 +101,8 @@ export async function GET(_: Request, context: { params: { id: string } }) {
             console.error('[PDF Generation] Quote not found:', quoteId);
             return NextResponse.json({ success: false, error: 'Quote not found.' }, { status: 404 });
         }
+
+        console.log("👉 [DB FETCH] Retrieved quote object pdf_mode:", quote?.pdf_mode);
 
         const { data: profile, error: profileError } = await profilesTable
             .select('company_name, phone, currency_code, full_name, is_subscribed')
@@ -125,11 +127,13 @@ export async function GET(_: Request, context: { params: { id: string } }) {
         const validUntil = new Date(now);
         validUntil.setDate(validUntil.getDate() + 30);
 
-        const currencyCode = profile?.currency_code || 'AED';
+        const currencyCode = quote.currency || profile?.currency_code || 'AED';
+        const taxRate = quote.tax_rate ?? 5;
         const lineItems = lineItemsArray.map(mapJsonLineItemToQuoteLineItem);
         const subtotal = roundCurrency(quote.subtotal_aed ?? lineItems.reduce((sum, item) => sum + item.subtotal_aed, 0));
-        const vat = roundCurrency(quote.vat_5_aed ?? subtotal * 0.05);
+        const vat = roundCurrency(quote.vat_5_aed ?? subtotal * (taxRate / 100));
         const total = roundCurrency(quote.total_aed ?? subtotal + vat);
+        const pdfMode = quote.pdf_mode || 'bilingual';
 
         const pdfBuffer = await renderToBuffer(
             createElement(QuoteDocument, {
@@ -143,12 +147,14 @@ export async function GET(_: Request, context: { params: { id: string } }) {
                 clientName: quote.clients?.name || 'Client',
                 clientCompany: quote.clients?.company ?? null,
                 projectTitle: quote.project_title || 'Quotation',
+                pdfMode,
                 lineItems,
                 subtotal,
                 vat,
                 total,
                 estimatedDuration: 'To be confirmed',
                 currencyCode,
+                taxRate,
             }) as any,
         );
 

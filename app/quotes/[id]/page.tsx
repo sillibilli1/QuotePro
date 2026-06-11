@@ -24,6 +24,7 @@ type QuoteDetailPayload = {
         quote_number: string | null;
         status: string;
         project_title: string | null;
+        pdf_mode: 'bilingual' | 'english_only';
         line_items: unknown;
         subtotal_aed: number | null;
         vat_5_aed: number | null;
@@ -32,6 +33,7 @@ type QuoteDetailPayload = {
         client_company?: string | null;
         company_name?: string | null;
         currency_code?: string | null;
+        tax_rate?: number;
         share_token?: string | null;
     };
     error?: string;
@@ -192,12 +194,14 @@ function QuoteDetailPageContent() {
     }, [loading, quoteId, session]);
 
     const totals = useMemo(() => {
+        const taxRate = (quoteData?.tax_rate ?? 5) / 100;
         const subtotal = roundCurrency(lineItems.reduce((s, i) => s + i.subtotal_aed, 0));
-        const vat = roundCurrency(subtotal * 0.05);
+        const vat = roundCurrency(subtotal * taxRate);
         return { subtotal, vat, total: roundCurrency(subtotal + vat) };
-    }, [lineItems]);
+    }, [lineItems, quoteData?.tax_rate]);
 
     const currencyCode = quoteData?.currency_code ?? 'AED';
+    const taxRatePercent = quoteData?.tax_rate ?? 5;
 
     const initialSubtotal = roundCurrency(quoteData?.subtotal_aed ?? totals.subtotal);
     const initialVat = roundCurrency(quoteData?.vat_5_aed ?? totals.vat);
@@ -249,6 +253,7 @@ function QuoteDetailPageContent() {
                     subtotal_aed: totals.subtotal,
                     vat_5_aed: totals.vat,
                     total_aed: totals.total,
+                    pdf_mode: quoteData?.pdf_mode ?? 'bilingual',
                 }),
             });
             const result = (await res.json().catch(() => null)) as SaveResponse | null;
@@ -289,25 +294,44 @@ function QuoteDetailPageContent() {
         }
     }
 
+    async function ensureShareToken(): Promise<string | null> {
+        if (quoteData?.share_token) return quoteData.share_token;
+
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}/share`, { method: 'POST' });
+            const result = await res.json();
+            if (result?.success && result?.share_token) {
+                setQuoteData(prev => prev ? { ...prev, share_token: result.share_token } : prev);
+                return result.share_token;
+            }
+        } catch (err) {
+            console.error('Failed to generate share token:', err);
+        }
+        return null;
+    }
+
     async function handleCopyLink() {
-        const shareToken = quoteData?.share_token;
-        if (!shareToken) return;
-        const url = `${window.location.origin}/quote/${shareToken}`;
+        const token = await ensureShareToken();
+        if (!token) return;
+        const url = `${window.location.origin}/quote/${token}`;
         try {
             await navigator.clipboard.writeText(url);
             setCopySuccess(true);
             setTimeout(() => setCopySuccess(false), 2000);
-        } catch {
-            // fallback — silently ignore
+        } catch (err) {
+            console.error("🚨 Clipboard copy failed:", err);
+            alert("Could not copy link automatically. Please check browser permissions.");
         }
     }
 
-    function handleWhatsApp() {
-        const shareToken = quoteData?.share_token;
-        if (!shareToken) return;
-        const url = `${window.location.origin}/quote/${shareToken}`;
+    async function handleWhatsApp() {
+        const token = await ensureShareToken();
+        if (!token) return;
+        const url = `${window.location.origin}/quote/${token}`;
+        const clientName = quoteData?.client_name ?? 'Client';
+        const projectType = quoteData?.project_title ?? 'your project';
         const text = encodeURIComponent(
-            `Here is your quote from ${quoteData?.company_name ?? 'us'}: ${url}`,
+            `Hi ${clientName}, here is the quotation for ${projectType}. You can view and download the PDF here: ${url}`,
         );
         window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
     }
@@ -408,14 +432,50 @@ function QuoteDetailPageContent() {
                             </div>
                         </div>
 
+                        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">PDF Template Language</p>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setQuoteData((current) => current ? { ...current, pdf_mode: 'bilingual' } : current)}
+                                    className={cn(
+                                        'rounded-2xl border px-4 py-4 text-left transition',
+                                        quoteData.pdf_mode === 'bilingual'
+                                            ? 'border-teal-500 bg-teal-500/10 text-white'
+                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                    )}
+                                >
+                                    <div className="text-sm font-semibold">Bilingual (English + Arabic)</div>
+                                    <div className="mt-1 text-xs text-slate-400">Ideal for UAE/GCC & Pakistan clients.</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setQuoteData((current) => current ? { ...current, pdf_mode: 'english_only' } : current)}
+                                    className={cn(
+                                        'rounded-2xl border px-4 py-4 text-left transition',
+                                        quoteData.pdf_mode === 'english_only'
+                                            ? 'border-teal-500 bg-teal-500/10 text-white'
+                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                    )}
+                                >
+                                    <div className="text-sm font-semibold">Standard (English Only)</div>
+                                    <div className="mt-1 text-xs text-slate-400">Ideal for International / Western clients.</div>
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Meta grid */}
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <div className="mt-5 grid gap-3 sm:grid-cols-4">
                             {[
                                 { label: 'Quote #', value: quoteData.quote_number || quoteId },
                                 {
                                     label: 'Status',
                                     value: null,
                                     node: <StatusBadge status={quoteData.status} dot />,
+                                },
+                                {
+                                    label: 'PDF Template',
+                                    value: quoteData.pdf_mode === 'english_only' ? 'Standard (English Only)' : 'Bilingual (English + Arabic)',
                                 },
                                 {
                                     label: 'Client',
@@ -494,6 +554,7 @@ function QuoteDetailPageContent() {
                                     vat={totals.vat}
                                     total={totals.total}
                                     currencyCode={currencyCode}
+                                    taxRate={taxRatePercent}
                                 />
                             </div>
                         </div>
@@ -534,7 +595,7 @@ function QuoteDetailPageContent() {
                                     <div className="flex flex-wrap gap-3">
                                         <button
                                             type="button"
-                                            onClick={handleWhatsApp}
+                                            onClick={() => void handleWhatsApp()}
                                             className="inline-flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-4 py-2 text-sm font-medium text-[#25D366] transition hover:bg-[#25D366]/20"
                                         >
                                             <MessageCircle className="h-4 w-4" aria-hidden="true" />
@@ -594,7 +655,7 @@ function QuoteDetailPageContent() {
                 {pdfSuccess && (
                     <button
                         type="button"
-                        onClick={handleWhatsApp}
+                        onClick={() => void handleWhatsApp()}
                         aria-label="Share via WhatsApp"
                         className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/10 text-[#25D366] transition hover:bg-[#25D366]/20"
                     >

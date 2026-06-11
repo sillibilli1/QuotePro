@@ -15,12 +15,14 @@ type QuoteDocumentProps = {
     clientName: string;
     clientCompany: string | null;
     projectTitle: string;
+    pdfMode: 'bilingual' | 'english_only';
     lineItems: QuoteLineItem[];
     subtotal: number;
     vat: number;
     total: number;
     estimatedDuration: string;
     currencyCode: string;
+    taxRate: number;
     isSubscribed: boolean;
 };
 
@@ -212,14 +214,18 @@ export function QuoteDocument({
     clientName,
     clientCompany,
     projectTitle,
+    pdfMode,
     lineItems,
     subtotal,
     vat,
     total,
     estimatedDuration,
     currencyCode,
+    taxRate,
     isSubscribed,
 }: QuoteDocumentProps) {
+    const showArabic = pdfMode !== 'english_only';
+    console.log("👉 [REACT-PDF] Prop pdfMode received:", pdfMode, "Calculated showArabic:", showArabic);
     return (
         <Document>
             <Page size="A4" style={styles.page}>
@@ -233,7 +239,7 @@ export function QuoteDocument({
 
                     <View style={styles.quotationBlock}>
                         <Text style={styles.quotationTitle}>QUOTATION</Text>
-                        <Text style={styles.arabicTitle}>{ARABIC_LABELS.quotation}</Text>
+                        {showArabic && <Text style={styles.arabicTitle}>{ARABIC_LABELS.quotation}</Text>}
                     </View>
                 </View>
 
@@ -244,12 +250,10 @@ export function QuoteDocument({
                     </View>
                     <View style={styles.subHeaderItem}>
                         <Text style={styles.label}>Date</Text>
-                        <Text style={styles.arabicLabel}>{ARABIC_LABELS.date}</Text>
                         <Text style={styles.value}>{createdAt}</Text>
                     </View>
                     <View style={styles.subHeaderItem}>
                         <Text style={styles.label}>Valid Until</Text>
-                        <Text style={styles.arabicLabel}>{ARABIC_LABELS.validUntil}</Text>
                         <Text style={styles.value}>{validUntil}</Text>
                     </View>
                 </View>
@@ -257,7 +261,6 @@ export function QuoteDocument({
                 <View style={styles.clientBox}>
                     <Text style={styles.sectionTitle}>Client Information</Text>
                     <Text>{`To: ${clientName}`}</Text>
-                    <Text style={styles.arabicLabel}>{ARABIC_LABELS.to}</Text>
                     <Text>{`Company: ${clientCompany ?? '-'}`}</Text>
                 </View>
 
@@ -289,24 +292,36 @@ export function QuoteDocument({
 
                 <View style={styles.totalsWrapper}>
                     <View style={styles.totalRow}>
-                        <View style={styles.bilingualLabel}>
+                        {showArabic ? (
+                            <View style={styles.bilingualLabel}>
+                                <Text>Subtotal</Text>
+                                <Text style={styles.arabicLabel}>{ARABIC_LABELS.subtotal}</Text>
+                            </View>
+                        ) : (
                             <Text>Subtotal</Text>
-                            <Text style={styles.arabicLabel}>{ARABIC_LABELS.subtotal}</Text>
-                        </View>
+                        )}
                         <Text>{formatCurrency(subtotal, currencyCode)}</Text>
                     </View>
                     <View style={styles.totalRow}>
-                        <View style={styles.bilingualLabel}>
-                            <Text>VAT 5%</Text>
-                            <Text style={styles.arabicLabel}>{ARABIC_LABELS.vat}</Text>
-                        </View>
+                        {showArabic ? (
+                            <View style={styles.bilingualLabel}>
+                                <Text>{taxRate > 0 ? `VAT/Tax ${taxRate}%` : 'Tax'}</Text>
+                                <Text style={styles.arabicLabel}>{ARABIC_LABELS.vat}</Text>
+                            </View>
+                        ) : (
+                            <Text>{taxRate > 0 ? `VAT/Tax ${taxRate}%` : 'Tax'}</Text>
+                        )}
                         <Text>{formatCurrency(vat, currencyCode)}</Text>
                     </View>
                     <View style={[styles.totalRow, styles.totalHighlight]}>
-                        <View style={styles.bilingualLabel}>
+                        {showArabic ? (
+                            <View style={styles.bilingualLabel}>
+                                <Text style={styles.totalHighlightText}>TOTAL</Text>
+                                <Text style={[styles.arabicLabel, styles.totalHighlightText]}>{ARABIC_LABELS.total}</Text>
+                            </View>
+                        ) : (
                             <Text style={styles.totalHighlightText}>TOTAL</Text>
-                            <Text style={[styles.arabicLabel, styles.totalHighlightText]}>{ARABIC_LABELS.total}</Text>
-                        </View>
+                        )}
                         <Text style={styles.totalHighlightText}>{formatCurrency(total, currencyCode)}</Text>
                     </View>
                 </View>
@@ -316,13 +331,13 @@ export function QuoteDocument({
                     <View style={styles.termRow}>
                         <View>
                             <Text>Payment Terms: 50% advance on confirmation, 50% on project completion</Text>
-                            <Text style={styles.arabicLabel}>{ARABIC_LABELS.paymentTerms}</Text>
+                            {showArabic && <Text style={styles.arabicLabel}>{ARABIC_LABELS.paymentTerms}</Text>}
                         </View>
                     </View>
                     <View style={styles.termRow}>
                         <View>
                             <Text>{`Estimated Duration: ${estimatedDuration}`}</Text>
-                            <Text style={styles.arabicLabel}>{ARABIC_LABELS.estimatedDuration}</Text>
+                            {showArabic && <Text style={styles.arabicLabel}>{ARABIC_LABELS.estimatedDuration}</Text>}
                         </View>
                     </View>
                 </View>

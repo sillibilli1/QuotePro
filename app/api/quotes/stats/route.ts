@@ -6,7 +6,7 @@ type QueryError = { message: string } | null;
 
 type QuoteStatsRow = Pick<
     Database['public']['Tables']['quotes']['Row'],
-    'id' | 'quote_number' | 'status' | 'total_aed' | 'created_at' | 'viewed_at' | 'share_token'
+    'id' | 'quote_number' | 'status' | 'total_aed' | 'currency' | 'created_at' | 'viewed_at' | 'share_token'
 > & {
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
@@ -47,6 +47,7 @@ function mapQuote(row: QuoteStatsRow): DashboardQuoteRecord {
         quote_number: row.quote_number,
         status: row.status,
         total_aed: row.total_aed,
+        currency: row.currency ?? 'AED',
         created_at: row.created_at,
         viewed_at: row.viewed_at,
         share_token: row.share_token,
@@ -55,24 +56,32 @@ function mapQuote(row: QuoteStatsRow): DashboardQuoteRecord {
     };
 }
 
-function buildStats(rows: QuoteStatsRow[]): QuoteStatsResponse {
+function buildStats(rows: QuoteStatsRow[]) {
     const quotes = rows.map(mapQuote);
-    const quotesThisMonth = quotes.length;
-    const pipelineValue = roundCurrency(
-        quotes.reduce((sum, quote) => {
-            if (quote.status === 'sent' || quote.status === 'pending') {
-                return sum + Number(quote.total_aed ?? 0);
-            }
+    const pipelineByCurrency: Record<string, number> = {};
+    const wonByCurrency: Record<string, number> = {};
 
-            return sum;
-        }, 0),
-    );
-    const wonThisMonth = quotes.filter((quote) => quote.status === 'won').length;
+    quotes.forEach((q) => {
+        const curr = q.currency;
+        if (q.status === 'sent' || q.status === 'pending') {
+            pipelineByCurrency[curr] = (pipelineByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
+        }
+        if (q.status === 'won') {
+            wonByCurrency[curr] = (wonByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
+        }
+    });
+
+    Object.keys(pipelineByCurrency).forEach((k) => {
+        pipelineByCurrency[k] = roundCurrency(pipelineByCurrency[k]);
+    });
+    Object.keys(wonByCurrency).forEach((k) => {
+        wonByCurrency[k] = roundCurrency(wonByCurrency[k]);
+    });
 
     return {
-        quotes_this_month: quotesThisMonth,
-        pipeline_value: pipelineValue,
-        won_this_month: wonThisMonth,
+        quotes_this_month: quotes.length,
+        pipeline_by_currency: pipelineByCurrency,
+        won_by_currency: wonByCurrency,
         quotes,
     };
 }
@@ -91,7 +100,7 @@ export async function GET() {
     const { start, end } = getMonthBounds();
     const quotesTable = supabase.from('quotes') as unknown as QuotesTable;
     const { data, error } = await quotesTable
-        .select('id, quote_number, status, total_aed, created_at, viewed_at, share_token, clients(name, company)')
+        .select('id, quote_number, status, total_aed, currency, created_at, viewed_at, share_token, clients(name, company)')
         .eq('user_id', user.id)
         .gte('created_at', start)
         .lt('created_at', end)

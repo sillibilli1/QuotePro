@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { GeneratedQuoteData, QuoteGenerateErrorResponse, QuoteGenerateResponse } from '@/types';
 import { generatedQuoteDataSchema, quoteGenerateRequestSchema } from '@/types';
-import { getMonthlyQuoteUsage } from '@/lib/quote-usage';
+import { getMonthlyQuoteUsage, getQuoteCreationLimit } from '@/lib/quote-usage';
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 
@@ -19,17 +19,19 @@ type ProfilesTable = {
     };
 };
 
-function buildSystemPrompt(currencyCode: string): string {
+function buildSystemPrompt(currencyCode: string, taxRate: number): string {
     return `You are an expert quotation writer for small and medium businesses.
 You specialize in: contracting, maintenance, interior design, logistics, and events.
 
 Your quotes follow professional business standards:
-- Include 5% VAT calculated correctly
+- Include ${taxRate}% tax/VAT calculated correctly
 - Use ${currencyCode} currency throughout — all monetary values must be realistic for the ${currencyCode} market
 - Professional tone — formal but not robotic
 - Line items include: description, unit, quantity, unit rate (${currencyCode}), subtotal (${currencyCode})
 - Include standard terms: validity period (30 days), payment terms (50% advance on confirmation, 50% on project completion)
 - Scope descriptions are specific, not vague — "Supply and install 4 units of 2-ton Daikin split AC systems" not "AC installation"
+
+CRITICAL: All monetary field names use "_aed" suffix but represent ${currencyCode}. Calculate tax at exactly ${taxRate}%.
 
 When you receive project details, you MUST output a valid JSON object.
 Do not include any explanatory text. Only the JSON object.
@@ -45,13 +47,13 @@ Output format:
       "description": "string",
       "unit": "string",
       "quantity": number,
-      "unit_rate_aed": number,
-      "subtotal_aed": number
+      "unit_rate_aed": number (in ${currencyCode}),
+      "subtotal_aed": number (in ${currencyCode})
     }
   ],
-  "subtotal_aed": number,
-  "vat_5_percent_aed": number,
-  "total_aed": number,
+  "subtotal_aed": number (in ${currencyCode}),
+  "vat_5_percent_aed": number (${taxRate}% tax in ${currencyCode}),
+  "total_aed": number (in ${currencyCode}),
   "validity_days": 30,
   "payment_terms": "string",
   "estimated_duration": "string",
@@ -172,8 +174,9 @@ async function generateStructuredQuote(input: {
     client_company: string | null;
     approximate_value_aed: number | null;
     currencyCode: string;
+    taxRate: number;
 }) {
-    const systemPrompt = buildSystemPrompt(input.currencyCode);
+    const systemPrompt = buildSystemPrompt(input.currencyCode, input.taxRate);
     const userPrompt = buildUserPrompt(input);
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -216,12 +219,18 @@ export async function POST(request: Request) {
 
     try {
         const usage = await getMonthlyQuoteUsage(user.id, isSubscribed, plan);
+        const creationLimit = getQuoteCreationLimit(isSubscribed, plan);
 
-        if (usage.is_limit_reached) {
+        if (usage.count >= creationLimit) {
+            const message =
+                plan === 'growth'
+                    ? 'You have reached the Fair Use limit for this month.'
+                    : "You've reached your monthly limit of 5 quotes. Upgrade to Starter for unlimited quotes.";
+
             return NextResponse.json(
                 {
                     error: 'limit_reached',
-                    message: "You've reached your monthly limit of 5 quotes. Upgrade to Starter for unlimited quotes.",
+                    message,
                     upgrade_url: '/app/upgrade',
                 },
                 { status: 403 },
@@ -240,6 +249,8 @@ export async function POST(request: Request) {
         return jsonError(400, 'Invalid request body.', 'form');
     }
 
+    console.log("👉 [API PAYLOAD] Received pdf_mode:", (requestBody as any)?.pdf_mode);
+
     const parsedRequest = quoteGenerateRequestSchema.safeParse(requestBody);
 
     if (!parsedRequest.success) {
@@ -256,7 +267,8 @@ export async function POST(request: Request) {
     try {
         const quoteData = await generateStructuredQuote({
             ...parsedRequest.data,
-            currencyCode,
+            currencyCode: parsedRequest.data.currency,
+            taxRate: parsedRequest.data.tax_rate,
         });
 
         if (!quoteData) {
@@ -266,7 +278,11 @@ export async function POST(request: Request) {
         // Day 8: Return only quote_data, no DB write
         return NextResponse.json<QuoteGenerateResponse>({
             success: true,
-            quote_data: quoteData,
+            quote_data: {
+                ...quoteData,
+                currency: parsedRequest.data.currency,
+                tax_rate: parsedRequest.data.tax_rate,
+            },
         });
     } catch (error) {
         console.error('Quote generation failed:', error);

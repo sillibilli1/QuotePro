@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import type { Database, LineItemRecord, PublicQuoteResponse } from '@/types';
+import type { Database, PublicQuoteResponse } from '@/types';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { PublicQuoteView } from '@/components/quotes/PublicQuoteView';
 
@@ -8,7 +8,7 @@ type QueryError = { message: string } | null;
 
 type QuotePublicRow = Pick<
     Database['public']['Tables']['quotes']['Row'],
-    'id' | 'quote_number' | 'status' | 'project_title' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'share_token' | 'created_at' | 'viewed_at'
+    'id' | 'user_id' | 'quote_number' | 'status' | 'project_title' | 'pdf_mode' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'share_token' | 'created_at' | 'viewed_at' | 'currency' | 'tax_rate' | 'line_items'
 > & {
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
@@ -17,14 +17,6 @@ type QuotesTable = {
     select: (columns: string) => {
         eq: (column: 'share_token', value: string) => {
             maybeSingle: () => Promise<{ data: QuotePublicRow | null; error: QueryError }>;
-        };
-    };
-};
-
-type LineItemsTable = {
-    select: (columns: string) => {
-        eq: (column: 'quote_id', value: string) => {
-            order: (column: 'item_order', config: { ascending: boolean }) => Promise<{ data: LineItemRecord[] | null; error: QueryError }>;
         };
     };
 };
@@ -41,9 +33,34 @@ function roundCurrency(value: number) {
     return Math.round(value * 100) / 100;
 }
 
+function parseLineItemsFromJSONB(value: unknown): Array<{
+    item_number: number;
+    description: string;
+    unit: string;
+    quantity: number;
+    unit_rate_aed: number;
+    subtotal_aed: number;
+}> {
+    if (!Array.isArray(value)) return [];
+    return value.map((item, index) => {
+        const r = item as Record<string, unknown>;
+        const qty = Number(r.quantity ?? 0);
+        const rate = Number(r.unit_price_aed ?? r.unit_rate_aed ?? 0);
+        const q = Number.isFinite(qty) ? qty : 0;
+        const u = Number.isFinite(rate) ? rate : 0;
+        return {
+            item_number: index + 1,
+            description: String(r.description ?? '').trim(),
+            unit: String(r.title ?? r.unit ?? '').trim(),
+            quantity: q,
+            unit_rate_aed: u,
+            subtotal_aed: roundCurrency(q * u),
+        };
+    });
+}
+
 function mapPublicQuoteResponse(
     quote: QuotePublicRow,
-    lineItems: LineItemRecord[],
     profile: { company_name: string; phone: string; currency_code: string } | null,
 ): NonNullable<PublicQuoteResponse['quote']> {
     return {
@@ -61,24 +78,19 @@ function mapPublicQuoteResponse(
         client_company: quote.clients?.company ?? null,
         company_name: profile?.company_name ?? null,
         company_phone: profile?.phone ?? null,
-        line_items: lineItems.map((item, index) => ({
-            item_number: index + 1,
-            description: item.description?.trim() || item.title.trim(),
-            unit: item.title.trim(),
-            quantity: Number(item.quantity ?? 0),
-            unit_rate_aed: Number(item.unit_price_aed ?? 0),
-            subtotal_aed: roundCurrency(Number(item.total_price_aed ?? 0)),
-        })),
+        pdf_mode: quote.pdf_mode,
+        currency: quote.currency,
+        tax_rate: quote.tax_rate,
+        line_items: parseLineItemsFromJSONB(quote.line_items),
     };
 }
 
 async function getPublicQuote(token: string) {
     const supabase = createServiceRoleClient();
     const quotesTable = supabase.from('quotes') as unknown as QuotesTable;
-    const lineItemsTable = supabase.from('line_items') as unknown as LineItemsTable;
 
     const { data: quote, error: quoteError } = await quotesTable
-        .select('id, quote_number, status, project_title, subtotal_aed, vat_5_aed, total_aed, share_token, created_at, viewed_at, clients(name, company)')
+        .select('id, user_id, quote_number, status, project_title, pdf_mode, subtotal_aed, vat_5_aed, total_aed, share_token, created_at, viewed_at, currency, tax_rate, line_items, clients(name, company)')
         .eq('share_token', token)
         .maybeSingle();
 
@@ -90,25 +102,13 @@ async function getPublicQuote(token: string) {
         return null;
     }
 
-    const { data: lineItems, error: lineItemsError } = await lineItemsTable
-        .select('*')
-        .eq('quote_id', quote.id)
-        .order('item_order', { ascending: true });
-
-    if (lineItemsError) {
-        throw new Error(lineItemsError.message);
-    }
-
     const profilesClient = supabase.from('profiles') as unknown as ProfilesTable;
-    const ownerId = (lineItems?.[0]?.user_id ?? null) as string | null;
-    const { data: profile } = ownerId
-        ? await profilesClient.select('company_name, phone, currency_code').eq('id', ownerId).maybeSingle()
-        : { data: null };
+    const { data: profile } = await profilesClient.select('company_name, phone, currency_code').eq('id', quote.user_id).maybeSingle();
 
-    const currencyCode = profile?.currency_code || 'AED';
+    const currencyCode = quote.currency || profile?.currency_code || 'AED';
 
     return {
-        quote: mapPublicQuoteResponse(quote, lineItems ?? [], profile ?? null),
+        quote: mapPublicQuoteResponse(quote, profile ?? null),
         currencyCode,
     };
 }

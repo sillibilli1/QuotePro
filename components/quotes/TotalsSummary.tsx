@@ -8,15 +8,11 @@ interface TotalsSummaryProps {
     vat: number;
     total: number;
     currencyCode: string;
+    taxRate: number;
 }
 
 function formatMono(value: number, currencyCode: string) {
-    return new Intl.NumberFormat('en', {
-        style: 'currency',
-        currency: currencyCode,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(value);
+    return `${currencyCode} ${Number(value).toFixed(2)}`;
 }
 
 /** Flashes teal briefly whenever `value` changes */
@@ -57,10 +53,10 @@ function FlashingNumber({
     );
 }
 
-export function TotalsSummary({ subtotal, vat, total, currencyCode }: TotalsSummaryProps) {
+export function TotalsSummary({ subtotal, vat, total, currencyCode, taxRate }: TotalsSummaryProps) {
     const rows = [
         { label: 'Subtotal', value: subtotal, bold: false },
-        { label: 'VAT (5%)', value: vat, bold: false },
+        { label: `Tax (${taxRate}%)`, value: vat, bold: false },
         { label: 'Total', value: total, bold: true },
     ];
 

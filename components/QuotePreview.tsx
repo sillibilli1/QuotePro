@@ -22,13 +22,12 @@ interface QuotePreviewProps {
     onReset: () => void;
 }
 
+function getTaxLabel(taxRate: number): string {
+    return `Tax (${taxRate}%)`;
+}
+
 function formatCurrency(value: number, currencyCode: string) {
-    return new Intl.NumberFormat('en', {
-        style: 'currency',
-        currency: currencyCode,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(value);
+    return `${currencyCode} ${Number(value).toFixed(2)}`;
 }
 
 export function QuotePreview({
@@ -76,6 +75,9 @@ export function QuotePreview({
                         client_name: context.client_name,
                         client_company: context.client_company,
                         approx_value: context.approx_value,
+                        pdf_mode: context.pdf_mode,
+                        currency: context.currency,
+                        tax_rate: context.tax_rate,
                     },
                 }),
             });
@@ -99,20 +101,29 @@ export function QuotePreview({
         setReviseError(null);
         setConfirmError(null);
 
+        console.log("👉 [PREVIEW CONFIRM] Context pdf_mode:", context.pdf_mode);
+
+        const confirmPayload = {
+            quote_data: quoteData,
+            context: {
+                project_type: context.project_type,
+                brief_text: context.brief_text,
+                client_name: context.client_name,
+                client_company: context.client_company,
+                approx_value: context.approx_value,
+                pdf_mode: context.pdf_mode,
+                currency: context.currency,
+                tax_rate: context.tax_rate,
+            },
+        };
+
+        console.log("👉 [PREVIEW CONFIRM] Sending pdf_mode:", confirmPayload.context.pdf_mode);
+
         try {
             const response = await fetch('/api/quotes/confirm', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    quote_data: quoteData,
-                    context: {
-                        project_type: context.project_type,
-                        brief_text: context.brief_text,
-                        client_name: context.client_name,
-                        client_company: context.client_company,
-                        approx_value: context.approx_value,
-                    },
-                }),
+                body: JSON.stringify(confirmPayload),
             });
 
             const result = (await response.json().catch(() => null)) as QuoteConfirmResponse | null;
@@ -195,7 +206,7 @@ export function QuotePreview({
                 <div className="mt-5 flex flex-col gap-1.5 rounded-xl border border-brand/20 bg-brand/5 p-4 text-sm">
                     {[
                         { label: 'Subtotal', val: quoteData.subtotal_aed },
-                        { label: 'VAT (5%)', val: quoteData.vat_5_percent_aed },
+                        { label: getTaxLabel(context.tax_rate), val: quoteData.vat_5_percent_aed },
                     ].map(({ label, val }) => (
                         <div key={label} className="flex items-center justify-between gap-4">
                             <span className="text-slate-700">{label}</span>

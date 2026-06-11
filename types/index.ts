@@ -71,6 +71,8 @@ export interface QuoteLineItem {
     subtotal_aed: number;
 }
 
+export type SupportedCurrency = 'AED' | 'PKR' | 'USD' | 'GBP' | 'SAR';
+
 export interface LineItemRecord {
     id: string;
     quote_id: string;
@@ -100,7 +102,15 @@ export interface GeneratedQuoteData {
     payment_terms: string;
     estimated_duration: string;
     notes: string | null;
+    currency?: string;
+    tax_rate?: number;
 }
+
+export type PdfMode = 'bilingual' | 'english_only';
+
+export const PDF_MODES = ['bilingual', 'english_only'] as const;
+
+export const pdfModeSchema = z.enum(PDF_MODES);
 
 export interface QuoteFormValues {
     project_type: ProjectType | '';
@@ -108,6 +118,9 @@ export interface QuoteFormValues {
     client_name: string;
     client_company: string;
     approximate_value_aed: string;
+    pdf_mode: PdfMode;
+    currency: SupportedCurrency;
+    tax_rate: number;
 }
 
 export interface QuoteDetailResponse {
@@ -136,6 +149,7 @@ export interface DashboardQuoteRecord {
     quote_number: string | null;
     status: QuoteStatus;
     total_aed: number | null;
+    currency: SupportedCurrency;
     created_at: string;
     viewed_at: string | null;
     share_token: string | null;
@@ -145,8 +159,8 @@ export interface DashboardQuoteRecord {
 
 export interface QuoteStatsResponse {
     quotes_this_month: number;
-    pipeline_value: number;
-    won_this_month: number;
+    pipeline_by_currency: Record<string, number>;
+    won_by_currency: Record<string, number>;
     quotes: DashboardQuoteRecord[];
 }
 
@@ -180,6 +194,9 @@ export interface PublicQuoteResponse {
         client_company: string | null;
         company_name: string | null;
         company_phone: string | null;
+        pdf_mode: PdfMode;
+        currency: SupportedCurrency;
+        tax_rate: number;
         line_items: QuoteLineItem[];
     };
     error?: string;
@@ -213,6 +230,9 @@ export const quoteFormSchema = z.object({
             'Approximate value must be a valid amount in AED.',
         )
         .refine((value) => value === '' || Number(value) > 0, 'Approximate value must be greater than 0 AED.'),
+    pdf_mode: pdfModeSchema,
+    currency: z.enum(['AED', 'PKR', 'USD', 'GBP', 'SAR']),
+    tax_rate: z.number().min(0).max(100),
 });
 
 export const quoteGenerateRequestSchema = z
@@ -226,6 +246,9 @@ export const quoteGenerateRequestSchema = z
             .min(1)
             .nullable(),
         approximate_value_aed: z.number().finite().positive().nullable(),
+        pdf_mode: pdfModeSchema,
+        currency: z.enum(['AED', 'PKR', 'USD', 'GBP', 'SAR']),
+        tax_rate: z.number().min(0).max(100),
     })
     .strict();
 
@@ -268,8 +291,6 @@ export const generatedQuoteDataSchema = z
         const calculatedSubtotal = roundCurrency(
             quote.line_items.reduce((sum, item) => sum + item.subtotal_aed, 0),
         );
-        const calculatedVat = roundCurrency(calculatedSubtotal * 0.05);
-        const calculatedTotal = roundCurrency(calculatedSubtotal + calculatedVat);
 
         if (roundCurrency(quote.subtotal_aed) !== calculatedSubtotal) {
             ctx.addIssue({
@@ -279,21 +300,8 @@ export const generatedQuoteDataSchema = z
             });
         }
 
-        if (roundCurrency(quote.vat_5_percent_aed) !== calculatedVat) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: 'VAT must equal 5% of subtotal.',
-                path: ['vat_5_percent_aed'],
-            });
-        }
-
-        if (roundCurrency(quote.total_aed) !== calculatedTotal) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: 'Total must equal subtotal plus VAT.',
-                path: ['total_aed'],
-            });
-        }
+        // Note: Tax and total validation removed - tax rate is dynamic per quote
+        // The AI is instructed to calculate based on the provided tax_rate parameter
     });
 
 export interface QuoteGenerateRequest {
@@ -302,6 +310,9 @@ export interface QuoteGenerateRequest {
     client_name: string;
     client_company: string | null;
     approximate_value_aed: number | null;
+    pdf_mode: PdfMode;
+    currency: SupportedCurrency;
+    tax_rate: number;
 }
 
 export interface QuoteGenerateSuccessResponse {
@@ -326,10 +337,13 @@ export interface QuoteRecord {
     project_title: string | null;
     project_type: ProjectType | null;
     brief_text: string | null;
+    pdf_mode: PdfMode;
     line_items: QuoteLineItem[];
     subtotal_aed: number | null;
     vat_5_aed: number | null;
     total_aed: number | null;
+    currency: SupportedCurrency;
+    tax_rate: number;
     share_token: string | null;
     pdf_url: string | null;
     viewed_at: string | null;
@@ -430,10 +444,13 @@ export type Database = {
                     project_title?: string | null;
                     project_type?: ProjectType | null;
                     brief_text?: string | null;
+                    pdf_mode?: PdfMode;
                     line_items?: QuoteLineItem[];
                     subtotal_aed?: number | null;
                     vat_5_aed?: number | null;
                     total_aed?: number | null;
+                    currency?: SupportedCurrency;
+                    tax_rate?: number;
                     share_token?: string | null;
                     pdf_url?: string | null;
                     viewed_at?: string | null;
@@ -449,10 +466,13 @@ export type Database = {
                     project_title?: string | null;
                     project_type?: ProjectType | null;
                     brief_text?: string | null;
+                    pdf_mode?: PdfMode;
                     line_items?: QuoteLineItem[];
                     subtotal_aed?: number | null;
                     vat_5_aed?: number | null;
                     total_aed?: number | null;
+                    currency?: SupportedCurrency;
+                    tax_rate?: number;
                     share_token?: string | null;
                     pdf_url?: string | null;
                     viewed_at?: string | null;
@@ -545,6 +565,9 @@ export interface QuoteDraftContext {
     client_name: string;
     client_company: string | null;
     approx_value: number | null;
+    pdf_mode: PdfMode;
+    currency: SupportedCurrency;
+    tax_rate: number;
 }
 
 export interface QuoteDraft {

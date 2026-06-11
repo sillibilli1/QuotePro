@@ -2,13 +2,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getMonthlyQuoteUsage } from '@/lib/quote-usage';
-import type { DashboardQuoteRecord, Database, ProfileRecord, QuoteStatsResponse } from '@/types';
+import type { DashboardQuoteRecord, Database, ProfileRecord, SupportedCurrency } from '@/types';
 import { UpgradeSuccessToast } from '@/components/UpgradeSuccessToast';
-import { StatCard } from '@/components/dashboard/StatCard';
 import { UsageBanner } from '@/components/dashboard/UsageBanner';
 import { DashboardClient } from '@/components/DashboardClient';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { TrendingUp, FileText, Trophy } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function roundCurrency(value: number) {
@@ -53,6 +52,7 @@ function mapQuote(row: QuoteWithClient): DashboardQuoteRecord {
         quote_number: row.quote_number,
         status: row.status,
         total_aed: row.total_aed,
+        currency: row.currency ?? 'AED',
         created_at: row.created_at,
         viewed_at: row.viewed_at,
         share_token: row.share_token,
@@ -61,7 +61,7 @@ function mapQuote(row: QuoteWithClient): DashboardQuoteRecord {
     };
 }
 
-async function getDashboardStats(userId: string): Promise<QuoteStatsResponse> {
+async function getDashboardStats(userId: string) {
     const supabase = createClient();
     const { start, end } = getMonthBounds();
     const quotesTable = supabase.from('quotes') as unknown as QuotesTable;
@@ -76,15 +76,30 @@ async function getDashboardStats(userId: string): Promise<QuoteStatsResponse> {
 
     const quotes = (data ?? []).map((row) => mapQuote(row as QuoteWithClient));
 
+    const pipelineByCurrency: Record<string, number> = {};
+    const wonByCurrency: Record<string, number> = {};
+
+    quotes.forEach((q) => {
+        const curr = q.currency;
+        if (q.status === 'sent' || q.status === 'pending') {
+            pipelineByCurrency[curr] = (pipelineByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
+        }
+        if (q.status === 'won') {
+            wonByCurrency[curr] = (wonByCurrency[curr] ?? 0) + Number(q.total_aed ?? 0);
+        }
+    });
+
+    Object.keys(pipelineByCurrency).forEach((k) => {
+        pipelineByCurrency[k] = roundCurrency(pipelineByCurrency[k]);
+    });
+    Object.keys(wonByCurrency).forEach((k) => {
+        wonByCurrency[k] = roundCurrency(wonByCurrency[k]);
+    });
+
     return {
         quotes_this_month: quotes.length,
-        pipeline_value: roundCurrency(
-            quotes.reduce((sum, q) => {
-                if (q.status === 'sent' || q.status === 'pending') return sum + Number(q.total_aed ?? 0);
-                return sum;
-            }, 0),
-        ),
-        won_this_month: quotes.filter((q) => q.status === 'won').length,
+        pipeline_by_currency: pipelineByCurrency,
+        won_by_currency: wonByCurrency,
         quotes,
     };
 }
@@ -137,7 +152,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     const planBadge = getPlanBadge(profile?.plan ?? null, profile?.is_subscribed ?? false);
     const upgradeSuccess = searchParams.upgrade === 'success';
     const upgradedPlan = searchParams.plan ?? profile?.plan ?? 'starter';
-    const currencyCode = profile?.currency_code ?? 'AED';
+    const defaultCurrency = (profile?.currency_code ?? 'AED') as SupportedCurrency;
 
     return (
         <main className="min-h-screen bg-slate-950 px-4 py-8 md:py-10">
@@ -167,26 +182,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     </div>
                 </div>
 
-                {/* ── Stats row ────────────────────────────────────────────── */}
-                <div className="grid gap-4 sm:grid-cols-3">
-                    <StatCard
-                        label="Quotes This Month"
-                        value={String(stats.quotes_this_month)}
-                        icon={<FileText className="h-4 w-4" />}
-                    />
-                    <StatCard
-                        label="Pipeline Value"
-                        value={formatCurrency(stats.pipeline_value, currencyCode)}
-                        icon={<TrendingUp className="h-4 w-4" />}
-                        accent
-                    />
-                    <StatCard
-                        label="Won This Month"
-                        value={String(stats.won_this_month)}
-                        icon={<Trophy className="h-4 w-4" />}
-                    />
-                </div>
-
                 {/* ── Usage banner (slim) ───────────────────────────────────── */}
                 <UsageBanner
                     count={usage.count}
@@ -195,11 +190,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     isLimitReached={usage.is_limit_reached}
                 />
 
-                {/* ── Quote list (client component) ────────────────────────── */}
+                {/* ── Dashboard client with stats & quote list ────────────── */}
                 <DashboardClient
                     companyName={profile?.company_name ?? null}
-                    initialData={stats}
-                    currencyCode={currencyCode}
+                    pipelineByCurrency={stats.pipeline_by_currency}
+                    wonByCurrency={stats.won_by_currency}
+                    quotesThisMonth={stats.quotes_this_month}
+                    quotes={stats.quotes}
+                    defaultCurrency={defaultCurrency}
                 />
 
                 {/* ── Create new quote CTA ─────────────────────────────────── */}

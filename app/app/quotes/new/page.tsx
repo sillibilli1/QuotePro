@@ -18,6 +18,7 @@ import { GenerationLoader } from '@/components/quotes/GenerationLoader';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { QuotePreview } from '@/components/QuotePreview';
 import { useQuoteDraft } from '@/lib/useQuoteDraft';
+import { CURRENCIES, detectCurrencyFromTimezone } from '@/lib/currency-config';
 import { PROJECT_TYPES } from '@/types';
 import type {
     QuoteGenerateRequest,
@@ -25,6 +26,7 @@ import type {
     QuoteFormValues,
     QuoteDraftContext,
     QuoteReviseResponse,
+    SupportedCurrency,
 } from '@/types';
 import { quoteFormSchema } from '@/types';
 
@@ -79,6 +81,7 @@ function NewQuotePageContent() {
         clearErrors,
         control,
         watch,
+        setValue,
         formState: { errors },
     } = useForm<QuoteFormValues>({
         resolver: zodResolver(quoteFormSchema),
@@ -88,8 +91,13 @@ function NewQuotePageContent() {
             client_name: '',
             client_company: '',
             approximate_value_aed: '',
+            pdf_mode: 'bilingual',
+            currency: detectCurrencyFromTimezone() as SupportedCurrency,
+            tax_rate: CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5,
         },
     });
+
+    const selectedCurrency = watch('currency');
 
     const briefText = watch('brief_text');
     const briefLen = briefText?.length ?? 0;
@@ -157,7 +165,12 @@ function NewQuotePageContent() {
             approximate_value_aed: values.approximate_value_aed.trim()
                 ? Number(values.approximate_value_aed.trim())
                 : null,
+            pdf_mode: values.pdf_mode,
+            currency: values.currency,
+            tax_rate: values.tax_rate,
         };
+
+        console.log("🚨 FINAL SUBMIT PAYLOAD:", payload);
 
         actions.startGenerate();
 
@@ -207,6 +220,9 @@ function NewQuotePageContent() {
                 client_name: payload.client_name,
                 client_company: payload.client_company,
                 approx_value: payload.approximate_value_aed,
+                pdf_mode: payload.pdf_mode,
+                currency: payload.currency,
+                tax_rate: payload.tax_rate,
             };
 
             actions.generateSuccess(result.quote_data, context);
@@ -315,6 +331,61 @@ function NewQuotePageContent() {
                                     />
                                 </div>
 
+                                <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                        PDF Template Language
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-400">
+                                        Choose the PDF layout that best matches your client region.
+                                    </p>
+                                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                        <Controller
+                                            name="pdf_mode"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange('bilingual')}
+                                                    disabled={isGenerating}
+                                                    className={[
+                                                        'rounded-2xl border px-4 py-4 text-left transition',
+                                                        field.value === 'bilingual'
+                                                            ? 'border-teal-500 bg-teal-500/10 text-white'
+                                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                                    ].join(' ')}
+                                                >
+                                                    <div className="text-sm font-semibold">Bilingual (English + Arabic)</div>
+                                                    <div className="mt-1 text-xs text-slate-400">
+                                                        Ideal for UAE/GCC & Pakistan clients.
+                                                    </div>
+                                                </button>
+                                            )}
+                                        />
+                                        <Controller
+                                            name="pdf_mode"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange('english_only')}
+                                                    disabled={isGenerating}
+                                                    className={[
+                                                        'rounded-2xl border px-4 py-4 text-left transition',
+                                                        field.value === 'english_only'
+                                                            ? 'border-teal-500 bg-teal-500/10 text-white'
+                                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                                    ].join(' ')}
+                                                >
+                                                    <div className="text-sm font-semibold">Standard (English Only)</div>
+                                                    <div className="mt-1 text-xs text-slate-400">
+                                                        Ideal for International / Western clients.
+                                                    </div>
+                                                </button>
+                                            )}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div ref={errors.brief_text ? firstErrorRef : null}>
                                     <Textarea
                                         label="Project Brief"
@@ -362,9 +433,33 @@ function NewQuotePageContent() {
                                 />
 
                                 <div ref={errors.approximate_value_aed ? firstErrorRef : null}>
-                                    <div className="relative">
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                                        Approximate Value
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <Controller
+                                            name="currency"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <select
+                                                    value={field.value}
+                                                    onChange={(e) => {
+                                                        const newCurrency = e.target.value as SupportedCurrency;
+                                                        field.onChange(newCurrency);
+                                                        setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
+                                                    }}
+                                                    disabled={isGenerating}
+                                                    className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                                                >
+                                                    {Object.entries(CURRENCIES).map(([code, config]) => (
+                                                        <option key={code} value={code}>
+                                                            {config.symbol}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                        />
                                         <Input
-                                            label={`Approximate Value (${currencyCode})`}
                                             type="number"
                                             inputMode="decimal"
                                             min="0.01"
@@ -372,12 +467,8 @@ function NewQuotePageContent() {
                                             placeholder="e.g. 35000"
                                             error={errors.approximate_value_aed?.message}
                                             disabled={isGenerating}
-                                            className="pl-14"
                                             {...register('approximate_value_aed')}
                                         />
-                                        <span className="pointer-events-none absolute bottom-0 left-0 flex h-[42px] items-center rounded-l-xl border-r border-slate-700 bg-slate-800 px-3 text-sm font-medium text-slate-400">
-                                            {currencyCode}
-                                        </span>
                                     </div>
                                 </div>
 
@@ -388,6 +479,10 @@ function NewQuotePageContent() {
                                 )}
 
                                 <GenerationLoader active={isGenerating} />
+
+                                <div className="p-2 mb-4 text-xs font-mono text-red-500 bg-red-100 rounded">
+                                    LIVE FORM STATE - Currency: {watch('currency')} | Tax: {watch('tax_rate')}%
+                                </div>
 
                                 <div className="hidden md:block">
                                     <Button
@@ -416,7 +511,7 @@ function NewQuotePageContent() {
                             isRevising={isRevising}
                             isSaving={isSaving}
                             errorMessage={draft.error_message}
-                            currencyCode={currencyCode}
+                            currencyCode={draft.context.currency || watch('currency')}
                             onRevise={handleRevise}
                             onConfirm={handleConfirm}
                             onReset={handleReset}

@@ -15,6 +15,7 @@ type EditableQuoteProps = {
     initialVat: number;
     initialTotal: number;
     currencyCode: string;
+    taxRate: number;
 };
 
 type SaveResponse = {
@@ -68,6 +69,7 @@ export function EditableQuote({
     initialVat,
     initialTotal,
     currencyCode,
+    taxRate,
 }: EditableQuoteProps) {
     const { toasts, addToast, removeToast } = useToasts();
 
@@ -79,10 +81,10 @@ export function EditableQuote({
 
     const totals = useMemo(() => {
         const subtotal = roundCurrency(lineItems.reduce((sum, item) => sum + item.subtotal_aed, 0));
-        const vat = roundCurrency(subtotal * 0.05);
+        const vat = roundCurrency(subtotal * (taxRate / 100));
         const total = roundCurrency(subtotal + vat);
         return { subtotal, vat, total };
-    }, [lineItems]);
+    }, [lineItems, taxRate]);
 
     const hasChanges =
         roundCurrency(initialSubtotal) !== totals.subtotal ||
@@ -224,6 +226,7 @@ export function EditableQuote({
                             vat={totals.vat}
                             total={totals.total}
                             currencyCode={currencyCode}
+                            taxRate={taxRate}
                         />
 
                         <Button

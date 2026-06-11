@@ -4,12 +4,18 @@ import { createClient } from '@/lib/supabase/server';
 
 type QueryError = { message: string } | null;
 
-type QuoteWithClientRow = Pick<
-    Database['public']['Tables']['quotes']['Row'],
-    'id' | 'user_id' | 'client_id' | 'quote_number' | 'status' | 'project_title' | 'line_items' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'created_at' | 'share_token' | 'pdf_url' | 'viewed_at'
+type QuoteWithClientRow = Omit<
+    Pick<
+        Database['public']['Tables']['quotes']['Row'],
+        'id' | 'user_id' | 'client_id' | 'quote_number' | 'status' | 'project_title' | 'pdf_mode' | 'line_items' | 'subtotal_aed' | 'vat_5_aed' | 'total_aed' | 'created_at' | 'share_token' | 'pdf_url' | 'viewed_at' | 'tax_rate' | 'currency'
+    >,
+    'pdf_mode'
 > & {
+    pdf_mode?: 'bilingual' | 'english_only' | null;
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
+
+type QuoteTaxRateRow = { tax_rate: number };
 
 type ProfileCurrencyRow = { currency_code: string };
 
@@ -78,7 +84,7 @@ function parseLineItemsFromJSONB(value: unknown): QuoteLineItem[] {
     });
 }
 
-function buildQuoteResponse(row: QuoteWithClientRow, currencyCode: string) {
+function buildQuoteResponse(row: QuoteWithClientRow, fallbackCurrencyCode: string) {
     const lineItems = parseLineItemsFromJSONB(row.line_items);
 
     return {
@@ -88,6 +94,7 @@ function buildQuoteResponse(row: QuoteWithClientRow, currencyCode: string) {
         quote_number: row.quote_number,
         status: row.status,
         project_title: row.project_title,
+        pdf_mode: row.pdf_mode ?? 'bilingual',
         subtotal_aed: row.subtotal_aed,
         vat_5_aed: row.vat_5_aed,
         total_aed: row.total_aed,
@@ -97,7 +104,8 @@ function buildQuoteResponse(row: QuoteWithClientRow, currencyCode: string) {
         viewed_at: row.viewed_at,
         client_name: row.clients?.name ?? null,
         client_company: row.clients?.company ?? null,
-        currency_code: currencyCode,
+        currency_code: row.currency ?? fallbackCurrencyCode,
+        tax_rate: row.tax_rate ?? 5,
         line_items: lineItems,
     };
 }
@@ -119,13 +127,14 @@ export async function GET(_: Request, context: { params: { id: string } }) {
 
     const { data, error } = await quotesTable
         .select(
-            'id, user_id, client_id, quote_number, status, project_title, line_items, subtotal_aed, vat_5_aed, total_aed, created_at, share_token, pdf_url, viewed_at, clients(name, company)',
+            'id, user_id, client_id, quote_number, status, project_title, pdf_mode, line_items, subtotal_aed, vat_5_aed, total_aed, created_at, share_token, pdf_url, viewed_at, tax_rate, currency, clients(name, company)',
         )
         .eq('id', quoteId)
         .eq('user_id', user.id)
         .maybeSingle();
 
     if (error) {
+        console.error('[GET /api/quotes/[id]] Database error:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
@@ -153,6 +162,16 @@ export async function PATCH(request: Request, context: { params: { id: string } 
         return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
     }
 
+    // Fetch quote to get tax_rate
+    const quotesTableForTax = supabase.from('quotes');
+    const { data: quoteData } = await quotesTableForTax
+        .select('tax_rate')
+        .eq('id', context.params.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    const taxRate = ((quoteData as QuoteTaxRateRow | null)?.tax_rate ?? 5) / 100;
+
     let body: unknown;
 
     try {
@@ -166,6 +185,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
         subtotal_aed?: number;
         vat_5_aed?: number;
         total_aed?: number;
+        pdf_mode?: 'bilingual' | 'english_only';
     };
 
     if (!Array.isArray(payload.line_items) || payload.line_items.length === 0) {
@@ -174,7 +194,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
 
     const lineItems = normalizeLineItems(payload.line_items);
     const subtotal = roundCurrency(lineItems.reduce((sum, item) => sum + item.subtotal_aed, 0));
-    const vat = roundCurrency(subtotal * 0.05);
+    const vat = roundCurrency(subtotal * taxRate);
     const total = roundCurrency(subtotal + vat);
 
     // Convert line items to JSONB format
@@ -195,6 +215,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
             subtotal_aed: subtotal,
             vat_5_aed: vat,
             total_aed: total,
+            pdf_mode: payload.pdf_mode,
             status: 'review',
         })
         .eq('id', context.params.id)

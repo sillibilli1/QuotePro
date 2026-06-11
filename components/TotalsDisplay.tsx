@@ -14,9 +14,10 @@ type TotalsDisplayProps = {
     vat: number;
     total: number;
     currencyCode: string;
+    taxRate?: number;
 };
 
-export function TotalsDisplay({ subtotal, vat, total, currencyCode }: TotalsDisplayProps) {
+export function TotalsDisplay({ subtotal, vat, total, currencyCode, taxRate = 5 }: TotalsDisplayProps) {
     return (
         <div className="space-y-3 rounded-2xl border border-brand/20 bg-brand/5 p-5 text-sm text-slate-200">
             <div className="flex items-center justify-between gap-4">
@@ -24,7 +25,7 @@ export function TotalsDisplay({ subtotal, vat, total, currencyCode }: TotalsDisp
                 <span className="font-medium text-white">{formatCurrency(subtotal, currencyCode)}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
-                <span>VAT 5%</span>
+                <span>VAT {taxRate}%</span>
                 <span className="font-medium text-white">{formatCurrency(vat, currencyCode)}</span>
             </div>
             <div className="flex items-center justify-between gap-4 border-t border-brand/20 pt-3 text-base">

@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { UsageBanner } from '@/components/UsageBanner';
+import { CURRENCIES, detectCurrencyFromTimezone } from '@/lib/currency-config';
 import { PROJECT_TYPES } from '@/types';
 import type {
     GeneratedQuoteData,
@@ -17,6 +18,7 @@ import type {
     QuoteGenerateResponse,
     QuoteGenerateSuccessResponse,
     QuoteFormValues,
+    SupportedCurrency,
 } from '@/types';
 import { quoteFormSchema } from '@/types';
 
@@ -59,6 +61,8 @@ export function QuoteForm() {
         setError,
         clearErrors,
         control,
+        watch,
+        setValue,
         formState: { errors, isSubmitting },
     } = useForm<QuoteFormValues>({
         resolver: zodResolver(quoteFormSchema),
@@ -68,8 +72,15 @@ export function QuoteForm() {
             client_name: '',
             client_company: '',
             approximate_value_aed: '',
+            pdf_mode: 'bilingual',
+            currency: detectCurrencyFromTimezone() as SupportedCurrency,
+            tax_rate: CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5,
         },
     });
+
+    const taxRate = watch('tax_rate');
+
+    const selectedCurrency = watch('currency');
 
     useEffect(() => {
         let isMounted = true;
@@ -131,6 +142,9 @@ export function QuoteForm() {
             approximate_value_aed: values.approximate_value_aed.trim()
                 ? Number(values.approximate_value_aed.trim())
                 : null,
+            pdf_mode: values.pdf_mode,
+            currency: values.currency,
+            tax_rate: values.tax_rate,
         };
 
         try {
@@ -242,6 +256,61 @@ export function QuoteForm() {
                         )}
                     />
 
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            PDF Template Language
+                        </p>
+                        <p className="mt-1 text-sm text-slate-400">
+                            Choose the PDF layout that best matches your client region.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <Controller
+                                name="pdf_mode"
+                                control={control}
+                                render={({ field }) => (
+                                    <button
+                                        type="button"
+                                        onClick={() => field.onChange('bilingual')}
+                                        disabled={isSubmitting}
+                                        className={[
+                                            'rounded-2xl border px-4 py-4 text-left transition',
+                                            field.value === 'bilingual'
+                                                ? 'border-teal-500 bg-teal-500/10 text-white'
+                                                : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                        ].join(' ')}
+                                    >
+                                        <div className="text-sm font-semibold">Bilingual (English + Arabic)</div>
+                                        <div className="mt-1 text-xs text-slate-400">
+                                            Ideal for UAE/GCC & Pakistan clients.
+                                        </div>
+                                    </button>
+                                )}
+                            />
+                            <Controller
+                                name="pdf_mode"
+                                control={control}
+                                render={({ field }) => (
+                                    <button
+                                        type="button"
+                                        onClick={() => field.onChange('english_only')}
+                                        disabled={isSubmitting}
+                                        className={[
+                                            'rounded-2xl border px-4 py-4 text-left transition',
+                                            field.value === 'english_only'
+                                                ? 'border-teal-500 bg-teal-500/10 text-white'
+                                                : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
+                                        ].join(' ')}
+                                    >
+                                        <div className="text-sm font-semibold">Standard (English Only)</div>
+                                        <div className="mt-1 text-xs text-slate-400">
+                                            Ideal for International / Western clients.
+                                        </div>
+                                    </button>
+                                )}
+                            />
+                        </div>
+                    </div>
+
                     <Textarea
                         label="Project Brief"
                         id="project-brief"
@@ -271,17 +340,45 @@ export function QuoteForm() {
                         {...register('client_company')}
                     />
 
-                    <Input
-                        label={`Approximate value (${currencyCode})`}
-                        type="number"
-                        inputMode="decimal"
-                        min="0.01"
-                        step="0.01"
-                        placeholder="e.g. 35000"
-                        error={errors.approximate_value_aed?.message}
-                        disabled={isSubmitting}
-                        {...register('approximate_value_aed')}
-                    />
+                    <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                            Approximate Value
+                        </label>
+                        <div className="flex gap-2">
+                            <Controller
+                                name="currency"
+                                control={control}
+                                render={({ field }) => (
+                                    <select
+                                        value={field.value}
+                                        onChange={(e) => {
+                                            const newCurrency = e.target.value as SupportedCurrency;
+                                            field.onChange(newCurrency);
+                                            setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
+                                        }}
+                                        disabled={isSubmitting}
+                                        className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                                    >
+                                        {Object.entries(CURRENCIES).map(([code, config]) => (
+                                            <option key={code} value={code}>
+                                                {config.symbol}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            />
+                            <Input
+                                type="number"
+                                inputMode="decimal"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="e.g. 35000"
+                                error={errors.approximate_value_aed?.message}
+                                disabled={isSubmitting}
+                                {...register('approximate_value_aed')}
+                            />
+                        </div>
+                    </div>
 
                     {formError ? (
                         <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -378,7 +475,7 @@ export function QuoteForm() {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span>VAT (5%)</span>
+                                <span>Tax ({taxRate}%)</span>
                                 <span className="font-medium text-white">
                                     {formatCurrency(generatedQuote.quoteData.vat_5_percent_aed, currencyCode)}
                                 </span>

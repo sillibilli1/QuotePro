@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export const FREE_QUOTE_LIMIT = 5;
 export const STARTER_QUOTE_LIMIT = 30;
-export const GROWTH_QUOTE_LIMIT = 999999; // Effectively unlimited
+export const GROWTH_QUOTE_LIMIT = 999999; // Effectively unlimited for display/usage UI
+export const GROWTH_FAIR_USE_LIMIT = 1000;
 
 type QuoteUsageSummary = {
     count: number;
@@ -30,6 +31,7 @@ function getMonthStartIso() {
 
 /**
  * Determines the quote limit based on the user's subscription plan.
+ * This is used for the usage UI and mirrors the plan labels shown to the user.
  * @param isSubscribed - Whether the user has an active subscription
  * @param plan - The user's subscription plan ('starter', 'growth', or null/other for free)
  * @returns The monthly quote limit for the user's plan
@@ -40,7 +42,7 @@ export function getPlanLimit(isSubscribed: boolean, plan: string | null): number
     }
 
     if (plan === 'growth') {
-        return GROWTH_QUOTE_LIMIT; // Growth plan: unlimited (999999)
+        return GROWTH_QUOTE_LIMIT; // Growth plan: unlimited (999999) in the UI
     }
 
     if (plan === 'starter') {
@@ -48,6 +50,26 @@ export function getPlanLimit(isSubscribed: boolean, plan: string | null): number
     }
 
     // Default to free if plan is unrecognized
+    return FREE_QUOTE_LIMIT;
+}
+
+/**
+ * Returns the server-side enforcement limit for quote creation.
+ * Growth keeps the unlimited UI label but is capped by fair use on write paths.
+ */
+export function getQuoteCreationLimit(isSubscribed: boolean, plan: string | null): number {
+    if (!isSubscribed || !plan) {
+        return FREE_QUOTE_LIMIT;
+    }
+
+    if (plan === 'growth') {
+        return GROWTH_FAIR_USE_LIMIT;
+    }
+
+    if (plan === 'starter') {
+        return STARTER_QUOTE_LIMIT;
+    }
+
     return FREE_QUOTE_LIMIT;
 }
 
