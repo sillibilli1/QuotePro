@@ -105,6 +105,15 @@ async function getDashboardStats(userId: string) {
     };
 }
 
+async function getClientCount(userId: string) {
+    const supabase = createClient();
+    const { count } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+    return count ?? 0;
+}
+
 function getPlanBadge(plan: string | null, isSubscribed: boolean) {
     if (!isSubscribed || !plan) {
         return { label: 'Free', classes: 'border-slate-600 bg-slate-800 text-slate-400' };
@@ -145,9 +154,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             > | null;
         };
 
-    const [stats, usage] = await Promise.all([
+    const [stats, usage, clientCount] = await Promise.all([
         getDashboardStats(user.id),
         getMonthlyQuoteUsage(user.id, profile?.is_subscribed ?? false, profile?.plan ?? null),
+        getClientCount(user.id),
     ]);
 
     const planBadge = getPlanBadge(profile?.plan ?? null, profile?.is_subscribed ?? false);
@@ -197,6 +207,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     pipelineByCurrency={stats.pipeline_by_currency}
                     wonByCurrency={stats.won_by_currency}
                     quotesThisMonth={stats.quotes_this_month}
+                    clientCount={clientCount}
                     quotes={stats.quotes}
                     defaultCurrency={defaultCurrency}
                 />

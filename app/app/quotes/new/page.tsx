@@ -70,6 +70,8 @@ function NewQuotePageContent() {
     const [isUsageLoading, setIsUsageLoading] = useState(true);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [clients, setClients] = useState<any[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string>('');
 
     const currencyCode = usage?.currency_code ?? 'AED';
     const firstErrorRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +141,22 @@ function NewQuotePageContent() {
         return () => {
             mounted = false;
         };
+    }, []);
+
+    // Load clients
+    useEffect(() => {
+        async function loadClients() {
+            try {
+                const res = await fetch('/api/clients');
+                if (res.ok) {
+                    const data = await res.json();
+                    setClients(data.clients || []);
+                }
+            } catch (err) {
+                console.error('Failed to load clients:', err);
+            }
+        }
+        void loadClients();
     }, []);
 
     // Scroll to first error
@@ -411,6 +429,33 @@ function NewQuotePageContent() {
                                         </p>
                                     </div>
                                 </div>
+
+                                <Select
+                                    label="Select Client"
+                                    placeholder="Select a client or add new"
+                                    options={[
+                                        { value: 'new', label: '+ Add New Client' },
+                                        ...clients.map((client) => ({
+                                            value: client.id,
+                                            label: `${client.name}${client.company ? ` (${client.company})` : ''}`,
+                                        })),
+                                    ]}
+                                    value={selectedClientId}
+                                    onValueChange={(value) => {
+                                        setSelectedClientId(value);
+                                        if (value === 'new') {
+                                            setValue('client_name', '');
+                                            setValue('client_company', '');
+                                        } else {
+                                            const selectedClient = clients.find(c => c.id === value);
+                                            if (selectedClient) {
+                                                setValue('client_name', selectedClient.name);
+                                                setValue('client_company', selectedClient.company || '');
+                                            }
+                                        }
+                                    }}
+                                    disabled={isGenerating}
+                                />
 
                                 <div ref={errors.client_name ? firstErrorRef : null}>
                                     <Input

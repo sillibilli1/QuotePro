@@ -19,8 +19,10 @@ import type {
     QuoteGenerateSuccessResponse,
     QuoteFormValues,
     SupportedCurrency,
+    Client,
 } from '@/types';
 import { quoteFormSchema } from '@/types';
+import { useSearchParams } from 'next/navigation';
 
 function formatCurrency(value: number, currencyCode: string) {
     return new Intl.NumberFormat('en', {
@@ -47,11 +49,14 @@ type UsageResponse = {
 const PROJECT_TYPE_OPTIONS = PROJECT_TYPES.map((pt) => ({ value: pt, label: pt }));
 
 export function QuoteForm() {
+    const searchParams = useSearchParams();
     const [generatedQuote, setGeneratedQuote] = useState<GeneratedQuoteResult | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [usage, setUsage] = useState<UsageResponse | null>(null);
     const [isUsageLoading, setIsUsageLoading] = useState(true);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string>('');
 
     const currencyCode = usage?.currency_code ?? 'AED';
 
@@ -120,6 +125,40 @@ export function QuoteForm() {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        fetch('/api/clients')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    setClients(data.clients);
+                    const clientId = searchParams.get('client_id');
+                    if (clientId) {
+                        const client = data.clients.find((c: Client) => c.id === clientId);
+                        if (client) {
+                            setSelectedClientId(clientId);
+                            setValue('client_name', client.name);
+                            setValue('client_company', client.company || '');
+                        }
+                    }
+                }
+            })
+            .catch(() => { });
+    }, [searchParams, setValue]);
+
+    const handleClientSelect = (clientId: string) => {
+        setSelectedClientId(clientId);
+        if (clientId === '') {
+            setValue('client_name', '');
+            setValue('client_company', '');
+        } else {
+            const client = clients.find(c => c.id === clientId);
+            if (client) {
+                setValue('client_name', client.name);
+                setValue('client_company', client.company || '');
+            }
+        }
+    };
 
     async function onSubmit(values: QuoteFormValues) {
         setFormError(null);
@@ -320,6 +359,21 @@ export function QuoteForm() {
                         error={errors.brief_text?.message}
                         disabled={isSubmitting}
                         {...register('brief_text')}
+                    />
+
+                    <Select
+                        label="Select Existing Client"
+                        placeholder="+ Add New Client"
+                        options={[
+                            { value: '', label: '+ Add New Client' },
+                            ...clients.map(client => ({
+                                value: client.id,
+                                label: `${client.name}${client.company ? ` - ${client.company}` : ''}`
+                            }))
+                        ]}
+                        value={selectedClientId}
+                        onValueChange={handleClientSelect}
+                        disabled={isSubmitting}
                     />
 
                     <Input

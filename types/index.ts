@@ -62,6 +62,19 @@ export interface ClientRecord {
     created_at: string;
 }
 
+export interface Client {
+    id: string;
+    user_id: string;
+    name: string;
+    company: string | null;
+    email: string | null;
+    phone: string | null;
+    created_at: string;
+    quote_count?: number;
+    total_value?: Record<string, number>;
+    last_quote_date?: string | null;
+}
+
 export interface QuoteLineItem {
     item_number: number;
     description: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { FileText, TrendingUp, Trophy } from 'lucide-react';
+import { FileText, TrendingUp, Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -15,6 +15,7 @@ type DashboardClientProps = {
     pipelineByCurrency: Record<string, number>;
     wonByCurrency: Record<string, number>;
     quotesThisMonth: number;
+    clientCount: number;
     quotes: DashboardQuoteRecord[];
     defaultCurrency: SupportedCurrency;
 };
@@ -33,6 +34,7 @@ export function DashboardClient({
     pipelineByCurrency,
     wonByCurrency,
     quotesThisMonth,
+    clientCount,
     quotes: initialQuotes,
     defaultCurrency,
 }: DashboardClientProps) {
@@ -127,8 +129,8 @@ export function DashboardClient({
                                     key={curr}
                                     onClick={() => setSelectedCurrency(curr)}
                                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${selectedCurrency === curr
-                                            ? 'bg-brand text-white'
-                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                                        ? 'bg-brand text-white'
+                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
                                         }`}
                                 >
                                     {curr}
@@ -139,11 +141,16 @@ export function DashboardClient({
                 )}
 
                 {/* Stats row */}
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         label="Quotes This Month"
                         value={String(quotesThisMonth)}
                         icon={<FileText className="h-4 w-4" />}
+                    />
+                    <StatCard
+                        label="Total Clients"
+                        value={String(clientCount)}
+                        icon={<Users className="h-4 w-4" />}
                     />
                     <StatCard
                         label="Pipeline Value"
