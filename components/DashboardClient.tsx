@@ -20,12 +20,12 @@ type DashboardClientProps = {
     defaultCurrency: SupportedCurrency;
 };
 
-function formatCurrency(value: number, currencyCode: string) {
+function formatCurrency(value: number, currencyCode: string, noDecimals = false) {
     return new Intl.NumberFormat('en', {
         style: 'currency',
         currency: currencyCode,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: noDecimals ? 0 : 2,
+        maximumFractionDigits: noDecimals ? 0 : 2,
     }).format(value);
 }
 
@@ -154,13 +154,14 @@ export function DashboardClient({
                     />
                     <StatCard
                         label="Pipeline Value"
-                        value={formatCurrency(pipelineValue, selectedCurrency)}
+                        value={formatCurrency(pipelineValue, selectedCurrency, true)}
                         icon={<TrendingUp className="h-4 w-4" />}
                         accent
                     />
                     <StatCard
                         label="Won This Month"
-                        value={`${wonCount} (${formatCurrency(wonValue, selectedCurrency)})`}
+                        value={String(wonCount)}
+                        subtext={formatCurrency(wonValue, selectedCurrency, true)}
                         icon={<Trophy className="h-4 w-4" />}
                     />
                 </div>

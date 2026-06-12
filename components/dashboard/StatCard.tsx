@@ -6,9 +6,10 @@ interface StatCardProps {
     value: string;
     icon: ReactNode;
     accent?: boolean;
+    subtext?: string;
 }
 
-export function StatCard({ label, value, icon, accent = false }: StatCardProps) {
+export function StatCard({ label, value, icon, accent = false, subtext }: StatCardProps) {
     return (
         <div
             className={cn(
@@ -41,14 +42,21 @@ export function StatCard({ label, value, icon, accent = false }: StatCardProps) 
                 </span>
             </div>
 
-            <p
-                className={cn(
-                    'font-mono text-3xl font-bold tabular-nums leading-none',
-                    accent ? 'text-brand-light' : 'text-white',
+            <div>
+                <p
+                    className={cn(
+                        'text-2xl xl:text-3xl font-bold truncate tabular-nums leading-none',
+                        accent ? 'text-brand-light' : 'text-white',
+                    )}
+                >
+                    {value}
+                </p>
+                {subtext && (
+                    <p className="text-sm text-gray-400 mt-1 truncate">
+                        {subtext}
+                    </p>
                 )}
-            >
-                {value}
-            </p>
+            </div>
         </div>
     );
 }

@@ -1434,6 +1434,299 @@ Multi-image quotes: Upload 3-5 photos, extract line items from each, merge into 
 Usage analytics: Track voice vs vision adoption, parse success rate, field extraction accuracy
 ---
 
+---
+Day 9.5: Internal Admin Panel (Founder Backoffice)
+Goal: Build a secure, hidden admin dashboard for the founder to manage users, subscriptions, quotes, and manual payment approvals without opening the Supabase dashboard.
+
+Time: 4-5 hours
+
+Security Architecture
+Route Protection
+Admin route: /hq-admin (non-guessable, not linked in any public UI)
+Server-side auth check on every page load
+Middleware redirect for unauthorized users
+Hardcoded allowlist: salarakhoon12431243@gmail.com
+No role-based system (single admin only for MVP)
+Defense in Depth
+Server component checks user session via Supabase server client
+If email doesn't match allowlist, redirect to /app/dashboard with no error message (silent redirect)
+API routes for admin actions also verify email before executing
+No admin routes exposed in sitemap or robots.txt
+Feature Set (What the Founder Needs)
+1. Dashboard Overview
+Problem Solved: Founder needs at-a-glance health metrics without SQL queries.
+
+Metrics to Display:
+
+Total users (all time)
+Active subscriptions (Starter + Growth, currently subscribed)
+MRR (Monthly Recurring Revenue) by currency (AED, PKR, USD)
+Quotes generated (all time, this month)
+Conversion rate (quotes sent → quotes accepted)
+Pending manual payment approvals (count)
+Churn this month (subscriptions canceled)
+Top 5 users by quote volume
+Revenue breakdown by plan (Free vs. Starter vs. Growth)
+Technical Approach:
+
+SQL aggregations on profiles, quotes tables
+Cache results for 5 minutes (no need for real-time)
+Display as stat cards with trend indicators (↑ 12% vs last month)
+2. User Management
+Problem Solved: Founder needs to see who signed up, when, from where, and their activity level.
+
+Features:
+
+List all users (paginated, 50 per page)
+Search by email, name, company
+Filter by: plan (Free/Starter/Growth), subscription status (active/inactive), country
+Columns: Email, Name, Company, Plan, Quotes Used, MRR Contribution, Signup Date, Last Active
+Actions per user:
+View full profile (all fields from profiles table)
+View all quotes for this user
+Manually upgrade/downgrade plan
+Manually add bonus quotes
+Impersonate user (open new tab as this user — for debugging, shows a warning banner)
+Send email to user (opens Resend API form)
+Delete user (soft delete, archive their data, only if no active subscription)
+Technical Approach:
+
+API route: GET /api/admin/users with query params for filters
+Supabase query with joins to get quote counts, MRR
+Use Radix Table or Tanstack Table for sortable columns
+3. Manual Payment Approval Queue
+Problem Solved: Users click "I've paid via bank transfer" and founder needs to manually verify and activate their subscription.
+
+Features:
+
+List of all pending manual payment notifications
+Each row shows:
+User email, name, company
+Plan they want to subscribe to (Starter or Growth)
+Currency and amount they claim to have paid
+Timestamp of notification
+Bank transfer reference (if user entered it)
+Actions:
+Approve: Marks user as subscribed, sets is_subscribed = true, plan = 'starter'/'growth', sends confirmation email
+Reject: Sends email asking for proof of payment
+Mark as Pending: Does nothing, leaves in queue
+After approval, row disappears from queue (archived with status change)
+Technical Approach:
+
+New table: manual_payment_requests with columns: id, user_id, plan, currency, amount, status ('pending'/'approved'/'rejected'), created_at, approved_at, approved_by
+API route: POST /api/admin/approve-payment (takes request_id, updates profile and request status)
+Email via Resend: "Your QuotePro subscription is now active!"
+4. Subscription Management
+Problem Solved: Founder needs to manually adjust subscriptions, extend trials, or issue refunds without Stripe dashboard.
+
+Features:
+
+List all active subscriptions
+Search by user email
+Columns: User, Plan, MRR, Start Date, Next Billing Date, Stripe Subscription ID, Status
+Actions:
+Cancel subscription (immediately or at period end)
+Extend trial by X days (for customer service exceptions)
+Change plan (upgrade/downgrade)
+Issue partial refund (opens Stripe dashboard link with pre-filled data)
+View payment history (all Stripe invoices for this user)
+Technical Approach:
+
+Reads from profiles table (is_subscribed, plan, stripe_subscription_id)
+For cancellation: Call Stripe API to cancel subscription, then update profiles.is_subscribed = false
+For plan change: Call Stripe API to update subscription item, then update profiles.plan
+5. Quote Analytics & Monitoring
+Problem Solved: Founder needs to see what quotes are being created, which are converting, and identify power users or problem accounts.
+
+Features:
+
+List recent quotes (last 100, paginated)
+Columns: Quote Number, User, Client, Project Type, Currency, Total, Status, Created Date, Viewed Date, Accepted/Rejected Date
+Filters: Status (Draft/Sent/Accepted/Rejected/Won/Lost), Currency, Date range, User
+Actions:
+View quote details (full line items, PDF preview)
+View public link (opens in new tab)
+Delete quote (if test data)
+Flag quote (mark as suspicious if it looks like spam)
+Insights Section:
+
+Avg. quote value by currency
+Avg. time from sent → viewed
+Avg. time from viewed → accepted
+Acceptance rate by project type (Maintenance vs. Contracting vs. Interior Design)
+Top 10 clients by total quote value
+Technical Approach:
+
+API route: GET /api/admin/quotes with filters
+Use SQL window functions for aggregations
+Consider adding flagged boolean column to quotes table for spam detection
+6. Referral Tracking
+Problem Solved: Founder needs to see which users are referring others and who's earning bonus quotes.
+
+Features:
+
+List all users with referral activity
+Columns: User, Referral Code, Total Referrals, Bonus Quotes Earned, Conversion Rate (referrals → paid)
+Show recent referrals (last 30 days)
+Actions:
+View all referred users for a given referrer
+Manually award bonus quotes (for marketing campaigns)
+Invalidate referral code (if user is abusing system)
+Technical Approach:
+
+Query referrals table, join with profiles
+Calculate conversion rate: (paid_referrals / total_referrals) * 100
+7. System Health & Logs
+Problem Solved: Founder needs to monitor errors, API usage, and performance without setting up full observability stack.
+
+Features:
+
+Recent errors (last 50 API errors)
+Endpoint, status code, error message, user (if authenticated), timestamp
+API usage stats
+OpenAI API calls (quote generation, revision)
+Resend email sends
+Stripe API calls
+Total API requests per day (last 7 days)
+Slow queries (if any endpoint took >3 seconds, log it)
+Technical Approach:
+
+Create admin_logs table with columns: event_type, details, user_id, created_at
+Middleware or API wrapper logs errors automatically
+OpenAI/Resend/Stripe costs calculated from usage logs
+Cost Monitoring:
+
+Total OpenAI spend this month (estimate: # of quotes * $0.02)
+Total Resend emails sent (free tier: 100/day, warn if approaching limit)
+Stripe fees (estimate: 2.9% + AED 1 per transaction)
+8. Quick Actions Panel
+Problem Solved: Founder needs shortcuts to common tasks.
+
+Features:
+
+Send Email to All Users (broadcast via Resend, with Markdown editor)
+Generate Promo Code (creates a discount code in Stripe, marks it in DB)
+Export Data (downloads CSV of all users or all quotes)
+Clear Test Data (deletes all quotes/users created by founder's test account)
+Run Database Backup (triggers Supabase backup job via API)
+Technical Approach:
+
+Each action is a button that hits an admin API route
+Email broadcast: Queue emails (don't send all at once, rate limit to 10/minute)
+Export: Generate CSV server-side, return as download
+UI/UX Design Principles
+Layout
+Sidebar navigation (same pattern as main app, but different color scheme — dark red accent to differentiate from user app)
+Sections:
+📊 Dashboard
+👥 Users
+💳 Payments
+📄 Quotes
+🎁 Referrals
+🛠️ System
+⚡ Quick Actions
+Access Indicator
+Top banner (always visible): "🔐 Admin Mode — Logged in as salarakhoon12431243@gmail.com"
+Logout button (redirects to main app dashboard, not auth page)
+Mobile Responsive
+Not a priority (founder will use desktop)
+Basic responsive breakpoints, but no need for bottom nav or touch optimizations
+Database Schema Changes
+New Table: manual_payment_requests
+Sql
+CREATE TABLE manual_payment_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL, -- 'starter' or 'growth'
+  currency TEXT NOT NULL, -- 'AED', 'PKR', 'USD'
+  amount NUMERIC(10,2) NOT NULL,
+  reference TEXT, -- User-provided bank transfer reference
+  status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  processed_by TEXT, -- Admin email who processed it
+  notes TEXT -- Admin notes
+);
+CREATE INDEX idx_manual_payment_status ON manual_payment_requests(status);
+CREATE INDEX idx_manual_payment_user ON manual_payment_requests(user_id);
+New Table: admin_logs
+Sql
+CREATE TABLE admin_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_type TEXT NOT NULL, -- 'error', 'api_call', 'admin_action'
+  details JSONB,
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_admin_logs_type ON admin_logs(event_type);
+CREATE INDEX idx_admin_logs_created ON admin_logs(created_at DESC);
+Update Existing Table: quotes
+Add a flagged column for spam detection:
+
+Sql
+ALTER TABLE quotes ADD COLUMN flagged BOOLEAN DEFAULT FALSE;
+API Routes to Create
+Route	Method	Purpose
+/api/admin/stats	GET	Dashboard metrics
+/api/admin/users	GET	List all users with filters
+/api/admin/users/[id]	GET, PATCH, DELETE	User CRUD
+/api/admin/users/[id]/impersonate	POST	Generate impersonation token
+/api/admin/payments/pending	GET	List pending manual payments
+/api/admin/payments/[id]/approve	POST	Approve manual payment
+/api/admin/payments/[id]/reject	POST	Reject manual payment
+/api/admin/subscriptions	GET	List all subscriptions
+/api/admin/subscriptions/[id]/cancel	POST	Cancel subscription
+/api/admin/subscriptions/[id]/change-plan	POST	Change plan
+/api/admin/quotes	GET	List quotes with filters
+/api/admin/quotes/[id]	GET, DELETE	Quote details and deletion
+/api/admin/quotes/[id]/flag	POST	Flag quote as spam
+/api/admin/referrals	GET	Referral stats
+/api/admin/logs	GET	System logs
+/api/admin/actions/broadcast-email	POST	Send email to all users
+/api/admin/actions/export	POST	Export data as CSV
+Security Checklist
+ All admin API routes check for salarakhoon12431243@gmail.com before executing
+ Admin pages are server components that verify session server-side
+ No admin links in public UI (navbar, footer, sitemap)
+ Impersonation tokens expire after 1 hour
+ Admin actions are logged to admin_logs table (audit trail)
+ Manual payment approvals send email confirmations
+ User deletion is soft delete (sets deleted_at timestamp, doesn't DROP row)
+ CORS headers prevent admin API routes from being called from external domains
+Testing Checklist
+Before marking Day 9.5 complete:
+
+ Access /hq-admin as founder email → page loads
+ Access /hq-admin as different user → redirected silently
+ Dashboard shows correct MRR, user count, quote stats
+ User list loads and search works
+ Manual payment approval updates profiles.is_subscribed and sends email
+ Manual payment rejection sends email
+ Impersonate user opens correct user session in new tab
+ Cancel subscription calls Stripe API and updates DB
+ Quote list filters work (status, currency, date range)
+ Flag quote marks row as flagged
+ Referral tracking shows correct referral counts
+ Admin logs capture errors and actions
+ Broadcast email sends to all active users (test with 2 users)
+ Export CSV downloads correctly
+ No admin routes appear in Google search (verify robots.txt)
+Definition of Done
+ /hq-admin route exists and is access-controlled
+ Dashboard shows 10+ key metrics
+ User management allows search, filter, view, edit
+ Manual payment queue shows pending requests
+ Approve/reject payment works and sends email
+ Subscription management allows cancel and plan change
+ Quote analytics shows recent quotes and insights
+ Referral tracking displays top referrers
+ System logs capture errors and API usage
+ Quick actions panel has broadcast email and export
+ All admin API routes verify admin email
+ No TypeScript errors, no console warnings
+ Mobile layout is functional (not optimized, just usable)
+---
+
 **Day-by-Day Summary:**
 
 | Day | Goal | Key Deliverable |

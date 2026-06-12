@@ -56,10 +56,10 @@ export function BankTransferInstructions({
     const priceDisplay = `${plan.currency} ${plan.price.toLocaleString()}`;
     const reference = `QuotePro - ${userEmail} - ${selectedPlan}`;
 
-    const bankName = process.env.NEXT_PUBLIC_BANK_NAME ?? 'Emirates NBD';
-    const iban = process.env.NEXT_PUBLIC_BANK_IBAN ?? 'AE07 0260 0010 1534 7231 101';
-    const accountNumber = process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER ?? '1015347231101';
-    const accountHolder = process.env.NEXT_PUBLIC_BANK_ACCOUNT_HOLDER ?? 'Your Company LLC';
+    const bankName = process.env.NEXT_PUBLIC_BANK_NAME ?? 'Mashreq Bank';
+    const iban = process.env.NEXT_PUBLIC_BANK_IBAN ?? 'AE360330000019102074289';
+    const accountNumber = process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER ?? '019102074289';
+    const accountHolder = process.env.NEXT_PUBLIC_BANK_ACCOUNT_HOLDER ?? 'Jamal Khan';
 
     async function handleIvePaid() {
         setSubmitting(true);
