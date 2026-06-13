@@ -1,17 +1,17 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardBody } from '@/components/ui/Card';
-import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
+import { GoogleAuthForm } from '@/components/auth/GoogleAuthForm';
 
 export const metadata = {
     title: 'Sign in — QuotePro',
-    description: 'Sign in or create your QuotePro account with a magic link.',
+    description: 'Sign in or create your QuotePro account with Google.',
 };
 
 /**
- * /auth — Magic-link sign-in page.
+ * /auth — Google OAuth sign-in page.
  * Layout: full-height soft-gradient background, centered Card, logo above form.
- * Auth logic lives in MagicLinkForm → CheckInboxScreen; this page is pure shell.
+ * Auth logic lives in GoogleAuthForm; this page is pure shell.
  */
 export default async function AuthPage() {
     // Redirect already-authenticated users straight to the app
@@ -58,12 +58,12 @@ export default async function AuthPage() {
                         <div className="mb-6 space-y-1">
                             <h1 className="type-h2 text-text-primary">Sign in</h1>
                             <p className="text-sm text-text-secondary">
-                                Enter your email to receive a magic sign-in link.
+                                Sign in or create your account with Google.
                             </p>
                         </div>
 
-                        {/* Magic-link state machine form */}
-                        <MagicLinkForm />
+                        {/* Google OAuth form */}
+                        <GoogleAuthForm />
                     </CardBody>
                 </Card>
 

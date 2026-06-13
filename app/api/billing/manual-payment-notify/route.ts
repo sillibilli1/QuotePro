@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -33,6 +34,46 @@ export async function POST(request: Request) {
         if (!plan || !amount || !reference) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+
+        // Extract currency and numeric amount from string like "AED 199"
+        const [currency, amountStr] = amount.split(' ');
+        const numericAmount = parseFloat(amountStr.replace(/,/g, ''));
+
+        // Insert payment request into database using admin client to bypass RLS
+        const adminSupabase = createAdminClient();
+
+        // Ensure profile exists before inserting payment request
+        const { data: profile } = await adminSupabase
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile) {
+            await adminSupabase.from('profiles').insert({
+                id: user.id,
+                email: user.email,
+                full_name: user.user_metadata?.full_name || 'Early Adopter',
+            });
+        }
+
+        const { error: insertError } = await adminSupabase
+            .from('manual_payment_requests')
+            .insert({
+                user_id: user.id,
+                plan,
+                currency,
+                amount: numericAmount,
+                reference,
+                status: 'pending',
+            });
+
+        if (insertError) {
+            console.error('[manual-payment-notify] ❌ PAYMENT INSERT ERROR:', insertError);
+            return NextResponse.json({ error: 'Failed to save payment request' }, { status: 500 });
+        }
+
+        console.log('[manual-payment-notify] ✅ Payment request saved to database');
 
         const emailPayload = {
             from: 'QuotePro <hello@quoteproapp.com>',

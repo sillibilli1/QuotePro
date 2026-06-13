@@ -66,11 +66,15 @@ export default async function UpgradePage() {
                 {/* Pricing cards — shared component, geo-correct prices, checkout logic unchanged */}
                 <PricingCards pricing={pricing} currentPlan={currentPlan} isPublic={false} />
 
-                {/* FAQ — reused accordion from landing */}
-                <FAQAccordion className="bg-transparent py-4" />
+                {/* Bank transfer CTA — positioned after pricing cards */}
+                <div className="mt-12">
+                    <BankTransferCTA />
+                </div>
 
-                {/* Bank transfer CTA — logic unchanged */}
-                <BankTransferCTA />
+                {/* FAQ — reused accordion from landing */}
+                <div className="mt-16">
+                    <FAQAccordion className="bg-transparent py-4" />
+                </div>
             </div>
         </main>
     );

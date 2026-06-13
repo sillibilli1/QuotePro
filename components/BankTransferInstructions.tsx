@@ -23,7 +23,7 @@ function CopyButton({ text }: { text: string }) {
     return (
         <button
             onClick={handleCopy}
-            className="ml-2 rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-400 transition hover:border-brand/40 hover:text-white"
+            className="shrink-0 rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-400 transition hover:border-brand/40 hover:text-white"
             aria-label={`Copy ${text}`}
         >
             {copied ? '✓ Copied' : 'Copy'}
@@ -33,12 +33,12 @@ function CopyButton({ text }: { text: string }) {
 
 function BankRow({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-start justify-between gap-4 border-b border-white/5 py-3 last:border-0">
-            <span className="min-w-[140px] text-sm text-slate-400">{label}</span>
-            <span className="flex items-center text-sm font-mono text-white">
+        <div className="flex items-center justify-between gap-4 border-b border-white/5 py-3 last:border-0">
+            <span className="min-w-[140px] shrink-0 text-sm text-slate-400">{label}</span>
+            <span className="flex-1 break-all text-right text-sm font-mono text-white">
                 {value}
-                <CopyButton text={value} />
             </span>
+            <CopyButton text={value} />
         </div>
     );
 }
