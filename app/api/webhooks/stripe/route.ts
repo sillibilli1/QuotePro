@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripeClient } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase/server';
+import { STRIPE_PRICES } from '@/lib/stripe-config';
 
 export const dynamic = 'force-dynamic';
+
+// Map Stripe Price IDs to plan names (returns lowercase: 'starter' | 'growth')
+function getPlanFromPriceId(priceId: string): 'starter' | 'growth' | null {
+    for (const plans of Object.values(STRIPE_PRICES)) {
+        for (const [planName, prices] of Object.entries(plans)) {
+            if (prices.monthly === priceId || prices.annual === priceId) {
+                return planName as 'starter' | 'growth';
+            }
+        }
+    }
+    return null;
+}
 
 /**
  * POST /api/webhooks/stripe
@@ -42,24 +55,44 @@ export async function POST(request: Request) {
                 const session = event.data.object as Stripe.Checkout.Session;
 
                 const userId = session.metadata?.userId;
-                const plan = session.metadata?.plan;
+                let plan = session.metadata?.plan;
 
-                if (!userId || !plan) {
-                    console.error('[stripe-webhook] Missing userId or plan in session metadata', session.id);
+                if (!userId) {
+                    console.error('[stripe-webhook] Missing userId in session metadata', session.id);
                     break;
                 }
 
-                await admin
+                // If plan is missing, try to derive it from the subscription
+                if (!plan && session.subscription) {
+                    const stripe = getStripeClient();
+                    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+                    const priceId = subscription.items.data[0]?.price.id;
+                    if (priceId) {
+                        plan = getPlanFromPriceId(priceId) || undefined;
+                    }
+                }
+
+                // Safety: Only update if we have a valid plan (never write null)
+                if (!plan) {
+                    console.error('[stripe-webhook] Could not determine plan for session', session.id, 'priceId may not match config');
+                    break;
+                }
+
+                const { error } = await admin
                     .from('profiles')
                     .update({
                         is_subscribed: true,
-                        plan,
+                        plan: plan.toLowerCase(),
                         stripe_customer_id: session.customer as string,
                         stripe_subscription_id: session.subscription as string,
                     })
                     .eq('id', userId);
 
-                console.log(`[stripe-webhook] checkout.session.completed — userId=${userId} plan=${plan}`);
+                if (error) {
+                    console.error('[stripe-webhook] Database update failed:', error);
+                } else {
+                    console.log(`[stripe-webhook] checkout.session.completed — userId=${userId} plan=${plan} ✓`);
+                }
                 break;
             }
 
@@ -79,7 +112,7 @@ export async function POST(request: Request) {
                     .from('profiles')
                     .update({
                         is_subscribed: isActive,
-                        plan: isActive ? (plan ?? null) : null,
+                        plan: isActive && plan ? plan.toLowerCase() : null,
                         stripe_subscription_id: subscription.id,
                     })
                     .eq('id', userId);

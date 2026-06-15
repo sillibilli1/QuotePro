@@ -32,7 +32,11 @@ interface TopBarProps {
 }
 
 function TopBar({ userEmail, plan, onSignOut }: TopBarProps) {
-    const tier = plan ?? 'free';
+    // Normalize plan to lowercase and default to 'free' if invalid
+    const normalizedPlan = plan?.toLowerCase() as PlanTier | null;
+    const tier: PlanTier = (normalizedPlan && ['free', 'starter', 'growth'].includes(normalizedPlan))
+        ? normalizedPlan
+        : 'free';
 
     return (
         <header

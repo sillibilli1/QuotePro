@@ -31,6 +31,12 @@ const PLAN_DESCRIPTION: Record<PlanTier, string> = {
     growth: 'Unlimited quotes · PDF export · Share links · Priority support',
 };
 
+// Normalize plan to PlanTier (lowercase, fallback to 'free')
+function normalizePlan(plan: PlanTier): PlanTier {
+    const normalized = plan.toLowerCase() as PlanTier;
+    return ['free', 'starter', 'growth'].includes(normalized) ? normalized : 'free';
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface ProfileSettingsProps {
     initialValues: ProfileFormValues;
@@ -50,6 +56,9 @@ export function ProfileSettings({ initialValues, userEmail, plan }: ProfileSetti
 
     const [values, setValues] = useState<ProfileFormValues>(initialValues);
     const [saving, setSaving] = useState(false);
+
+    // Normalize plan to handle case mismatches
+    const normalizedPlan = normalizePlan(plan);
 
     // ── Track dirty state so we only show Save when something changed ─────────
     const isDirty =
@@ -187,16 +196,16 @@ export function ProfileSettings({ initialValues, userEmail, plan }: ProfileSetti
                             <div>
                                 <h2 className="type-h3 text-text-primary">Plan</h2>
                                 <p className="text-xs text-text-secondary">
-                                    {PLAN_DESCRIPTION[plan]}
+                                    {PLAN_DESCRIPTION[normalizedPlan]}
                                 </p>
                             </div>
-                            <Badge variant={PLAN_BADGE_VARIANT[plan]}>
-                                {PLAN_LABEL[plan]}
+                            <Badge variant={PLAN_BADGE_VARIANT[normalizedPlan]}>
+                                {PLAN_LABEL[normalizedPlan]}
                             </Badge>
                         </div>
                     </CardHeader>
                     <CardBody>
-                        {plan === 'free' ? (
+                        {normalizedPlan === 'free' ? (
                             <Link
                                 href="/app/upgrade"
                                 className={[

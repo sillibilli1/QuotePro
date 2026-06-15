@@ -403,10 +403,10 @@ function QuoteDetailPageContent() {
                     <Card className="p-6 md:p-8">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-900">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                                     {quoteData.company_name ?? 'Quotation'}
                                 </p>
-                                <h1 className="mt-1 text-2xl font-bold text-slate-900">
+                                <h1 className="mt-1 text-2xl font-bold text-white">
                                     {quoteData.project_title || 'Quotation'}
                                 </h1>
                             </div>
@@ -486,12 +486,12 @@ function QuoteDetailPageContent() {
                                     key={label}
                                     className="rounded-xl border border-slate-800 bg-slate-950/40 p-3"
                                 >
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-700">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                                         {label}
                                     </p>
                                     <div className="mt-1.5">
                                         {node ?? (
-                                            <p className="text-sm font-medium text-white break-all">{value}</p>
+                                            <p className="text-sm font-medium text-slate-200 break-all">{value}</p>
                                         )}
                                     </div>
                                 </div>
@@ -502,7 +502,7 @@ function QuoteDetailPageContent() {
                     {/* ── Line items ────────────────────────────────────────────────── */}
                     <Card className="p-6 md:p-8">
                         <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-900">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                                 Line Items
                             </p>
                             <p className="text-xs text-slate-500">
@@ -511,7 +511,7 @@ function QuoteDetailPageContent() {
                         </div>
 
                         {/* Desktop header row */}
-                        <div className="mb-2 hidden text-[10px] font-semibold uppercase tracking-widest text-slate-800 lg:grid lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] lg:gap-3">
+                        <div className="mb-2 hidden text-[10px] font-semibold uppercase tracking-widest text-slate-400 lg:grid lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] lg:gap-3">
                             <span>Description</span>
                             <span>Unit</span>
                             <span>Qty</span>

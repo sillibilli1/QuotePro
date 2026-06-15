@@ -120,7 +120,7 @@ export function DashboardClient({
                 {/* Currency Selector Pills */}
                 {activeCurrencies.length > 1 && (
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium uppercase tracking-widest text-slate-500">
+                        <span className="text-xs font-medium uppercase tracking-widest text-slate-400">
                             Currency:
                         </span>
                         <div className="flex gap-1">
@@ -170,8 +170,8 @@ export function DashboardClient({
                 <Card>
                     <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
                         <div>
-                            <h2 className="text-base font-bold tracking-tight text-teal-700">Quote Pipeline</h2>
-                            <p className="text-xs text-gray-500">
+                            <h2 className="text-base font-bold tracking-tight text-teal-400">Quote Pipeline</h2>
+                            <p className="text-xs text-slate-400">
                                 {companyName
                                     ? `${companyName} · current month`
                                     : 'Current month quotation activity'}

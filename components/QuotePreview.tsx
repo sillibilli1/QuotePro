@@ -43,6 +43,8 @@ export function QuotePreview({
     onConfirm,
     onReset,
 }: QuotePreviewProps) {
+    if (!quoteData) return null;
+
     const router = useRouter();
     const [reviseError, setReviseError] = useState<string | null>(null);
     const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -159,9 +161,9 @@ export function QuotePreview({
                         Generated Quote
                     </p>
                     <h2 className="text-2xl font-semibold text-white">{quoteData.project_title}</h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-400">
                         Client:{' '}
-                        <span className="font-medium text-slate-900">
+                        <span className="font-medium text-slate-200">
                             {quoteData.client_name || context.client_name}
                             {(quoteData.client_company || context.client_company) ? `, ${quoteData.client_company || context.client_company}` : ''}
                         </span>
@@ -172,7 +174,7 @@ export function QuotePreview({
                 <div className="mt-5 overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
                         <thead>
-                            <tr className="text-xs uppercase tracking-wider text-slate-500">
+                            <tr className="text-xs uppercase tracking-wider text-slate-400">
                                 <th className="pb-2 pr-3 font-medium">#</th>
                                 <th className="pb-2 pr-3 font-medium">Description</th>
                                 <th className="pb-2 pr-3 font-medium">Unit</th>
@@ -184,16 +186,16 @@ export function QuotePreview({
                         <tbody className="divide-y divide-slate-800">
                             {quoteData.line_items.map((item) => (
                                 <tr key={item.item_number} className="align-top">
-                                    <td className="py-2 pr-3 text-slate-500">{item.item_number}</td>
-                                    <td className="py-2 pr-3 text-slate-900">{item.description || 'No description'}</td>
-                                    <td className="py-2 pr-3 text-slate-700">{item.unit}</td>
-                                    <td className="py-2 pr-3 font-mono tabular-nums text-slate-800">
+                                    <td className="py-2 pr-3 text-slate-400">{item.item_number}</td>
+                                    <td className="py-2 pr-3 text-slate-200">{item.description || 'No description'}</td>
+                                    <td className="py-2 pr-3 text-slate-200">{item.unit}</td>
+                                    <td className="py-2 pr-3 font-mono tabular-nums text-slate-200">
                                         {item.quantity}
                                     </td>
-                                    <td className="py-2 pr-3 font-mono tabular-nums text-slate-800">
+                                    <td className="py-2 pr-3 font-mono tabular-nums text-slate-200">
                                         {formatCurrency(item.unit_rate_aed, currencyCode)}
                                     </td>
-                                    <td className="py-2 text-right font-mono tabular-nums text-slate-900">
+                                    <td className="py-2 text-right font-mono tabular-nums text-white">
                                         {formatCurrency(item.subtotal_aed, currencyCode)}
                                     </td>
                                 </tr>
@@ -209,15 +211,15 @@ export function QuotePreview({
                         { label: getTaxLabel(context.tax_rate), val: quoteData.vat_5_percent_aed },
                     ].map(({ label, val }) => (
                         <div key={label} className="flex items-center justify-between gap-4">
-                            <span className="text-slate-700">{label}</span>
-                            <span className="font-mono tabular-nums text-slate-900">
+                            <span className="text-slate-400">{label}</span>
+                            <span className="font-mono tabular-nums text-white font-semibold">
                                 {formatCurrency(val, currencyCode)}
                             </span>
                         </div>
                     ))}
                     <div className="flex items-center justify-between gap-4 border-t border-brand/20 pt-2 text-base">
-                        <span className="font-semibold text-slate-900">Total</span>
-                        <span className="font-mono font-bold tabular-nums text-slate-900">
+                        <span className="font-semibold text-slate-400">Total</span>
+                        <span className="font-mono font-bold tabular-nums text-white">
                             {formatCurrency(quoteData.total_aed, currencyCode)}
                         </span>
                     </div>

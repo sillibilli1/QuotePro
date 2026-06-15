@@ -5,8 +5,11 @@ import { getMonthlyQuoteUsage, getQuoteCreationLimit } from '@/lib/quote-usage';
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const AI_MODEL = 'gpt-5.4-mini';
-const AI_TIMEOUT_MS = 15000;
+const AI_TIMEOUT_MS = 50000;
 const GENERIC_ERROR_MESSAGE = 'Unable to generate quote. Please try again or contact support.';
 
 type ProfileCurrencyRow = { currency_code: string; plan: string | null; is_subscribed: boolean };
@@ -33,8 +36,7 @@ Your quotes follow professional business standards:
 
 CRITICAL: All monetary field names use "_aed" suffix but represent ${currencyCode}. Calculate tax at exactly ${taxRate}%.
 
-When you receive project details, you MUST output a valid JSON object.
-Do not include any explanatory text. Only the JSON object.
+CRITICAL: You are an API. You must respond ONLY with valid JSON. Do not include markdown formatting (no \`\`\`json), no backticks, and absolutely zero conversational text. Your output must be a JSON object with the exact schema below.
 
 Output format:
 {
@@ -127,6 +129,8 @@ async function callOpenAI(systemPrompt: string, userPrompt: string) {
     const openai = new OpenAI({
         apiKey: apiKey,
         baseURL: baseURL,
+        timeout: 60000, // 60 seconds
+        maxRetries: 2,
     });
 
     const controller = new AbortController();
@@ -162,9 +166,36 @@ async function callOpenAI(systemPrompt: string, userPrompt: string) {
         }
 
         return textContent;
+    } catch (error: any) {
+        console.error('🟢 UPSTREAM AI ERROR:', error);
+
+        // Handle rate limit errors
+        if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
+            const rateLimitError = new Error('Rate limit exceeded');
+            (rateLimitError as any).status = 429;
+            throw rateLimitError;
+        }
+
+        // Handle insufficient quota
+        if (error?.code === 'insufficient_quota') {
+            const quotaError = new Error('AI service quota exceeded');
+            (quotaError as any).status = 402;
+            throw quotaError;
+        }
+
+        throw error;
     } finally {
         clearTimeout(timeoutId);
     }
+}
+
+function cleanAIResponse(responseText: string): string {
+    // Strip markdown code blocks and backticks that AI might add
+    return responseText
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .replace(/^`+|`+$/g, '')
+        .trim();
 }
 
 async function generateStructuredQuote(input: {
@@ -181,9 +212,17 @@ async function generateStructuredQuote(input: {
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
         const responseText = await callOpenAI(systemPrompt, userPrompt);
+        const cleanedResponse = cleanAIResponse(responseText);
 
         try {
-            const parsed = JSON.parse(responseText) as unknown;
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(cleanedResponse);
+            } catch (parseError) {
+                console.error('JSON parse error. Raw AI response:', responseText);
+                throw new Error('AI returned malformed JSON');
+            }
+
             const validated = generatedQuoteDataSchema.parse(parsed);
             return sanitizeGeneratedQuoteData(validated, input.client_name, input.client_company);
         } catch {
@@ -284,8 +323,30 @@ export async function POST(request: Request) {
                 tax_rate: parsedRequest.data.tax_rate,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Quote generation failed:', error);
-        return jsonError(500, GENERIC_ERROR_MESSAGE, 'form');
+
+        // Handle specific error types
+        if (error.status === 429) {
+            return NextResponse.json<QuoteGenerateResponse>(
+                { success: false, error: 'Too many requests. Please wait a minute before generating again.', field: 'form' },
+                { status: 429 }
+            );
+        }
+
+        if (error.status === 402) {
+            return NextResponse.json<QuoteGenerateResponse>(
+                { success: false, error: 'AI service quota exceeded. Please contact support.', field: 'form' },
+                { status: 402 }
+            );
+        }
+
+        const errorMessage = error instanceof Error && error.name === 'AbortError'
+            ? 'AI generation took too long. Please try again.'
+            : GENERIC_ERROR_MESSAGE;
+        return NextResponse.json<QuoteGenerateResponse>(
+            { success: false, error: errorMessage, field: 'form' },
+            { status: 500 }
+        );
     }
 }

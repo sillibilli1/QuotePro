@@ -118,10 +118,16 @@ function getPlanBadge(plan: string | null, isSubscribed: boolean) {
     if (!isSubscribed || !plan) {
         return { label: 'Free', classes: 'border-slate-600 bg-slate-800 text-slate-400' };
     }
-    if (plan === 'growth') {
+    // Normalize to lowercase for case-insensitive matching
+    const normalizedPlan = plan.toLowerCase();
+    if (normalizedPlan === 'growth') {
         return { label: 'Growth', classes: 'border-purple-500/30 bg-purple-500/10 text-purple-300' };
     }
-    return { label: 'Starter', classes: 'border-brand/30 bg-brand/10 text-brand-light' };
+    if (normalizedPlan === 'starter') {
+        return { label: 'Starter', classes: 'border-brand/30 bg-brand/10 text-brand-light' };
+    }
+    // Fallback for any invalid plan value
+    return { label: 'Free', classes: 'border-slate-600 bg-slate-800 text-slate-400' };
 }
 
 function formatCurrency(value: number, currencyCode: string) {

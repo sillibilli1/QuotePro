@@ -41,11 +41,13 @@ export function getPlanLimit(isSubscribed: boolean, plan: string | null): number
         return FREE_QUOTE_LIMIT; // Free plan: 5 quotes
     }
 
-    if (plan === 'growth') {
+    const normalizedPlan = plan.toLowerCase();
+
+    if (normalizedPlan === 'growth') {
         return GROWTH_QUOTE_LIMIT; // Growth plan: unlimited (999999) in the UI
     }
 
-    if (plan === 'starter') {
+    if (normalizedPlan === 'starter') {
         return STARTER_QUOTE_LIMIT; // Starter plan: 30 quotes
     }
 
@@ -62,11 +64,13 @@ export function getQuoteCreationLimit(isSubscribed: boolean, plan: string | null
         return FREE_QUOTE_LIMIT;
     }
 
-    if (plan === 'growth') {
+    const normalizedPlan = plan.toLowerCase();
+
+    if (normalizedPlan === 'growth') {
         return GROWTH_FAIR_USE_LIMIT;
     }
 
-    if (plan === 'starter') {
+    if (normalizedPlan === 'starter') {
         return STARTER_QUOTE_LIMIT;
     }
 

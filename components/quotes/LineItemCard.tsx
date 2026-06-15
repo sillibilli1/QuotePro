@@ -49,7 +49,7 @@ export function LineItemCard({
             {/* ── MOBILE: mini-card ─────────────────────────────────────────────── */}
             <div className="block rounded-2xl border border-slate-700 bg-slate-900/60 p-4 lg:hidden">
                 <div className="mb-3 flex items-start justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-800">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                         #{item.item_number}
                     </span>
                     {canRemove && (

@@ -8,24 +8,24 @@
      [data-theme="dark"] { --bg: #09090B; … }
 ───────────────────────────────────────────── */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* Surfaces */
-  --bg: #FAFAFA;
-  --surface: #FFFFFF;
-  --surface-subtle: #F4F4F5;
-  --border: #E4E4E7;
+  --bg: #0B0F19;
+  --surface: #0F131D;
+  --surface-subtle: #1A1D27;
+  --border: #1e293b;
 
   /* Text */
-  --text-primary: #18181B;
-  --text-secondary: #52525B;
-  --text-tertiary: #A1A1AA;
+  --text-primary: #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #64748b;
 
   /* Accent */
-  --accent: #0D9488;
+  --accent: #14b8a6;
+  /* teal-500 */
+  --accent-hover: #0d9488;
   /* teal-600 */
-  --accent-hover: #0F766E;
-  /* teal-700 */
 
   /* Inter opentype features */
   --font-feature: 'cv11', 'ss01';

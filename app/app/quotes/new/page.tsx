@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { Briefcase, Truck, Star, Wrench, Building2 } from 'lucide-react';
+import { Briefcase, Truck, Star, Wrench, Building2, Wind, Hammer, Monitor, Sparkles, ArrowRight } from 'lucide-react';
+import { quoteTemplates } from '@/lib/quote-templates';
 import { useAuth } from '@/components/AuthProvider';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
@@ -72,6 +73,7 @@ function NewQuotePageContent() {
     const [formError, setFormError] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string>('');
+    const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
     const currencyCode = usage?.currency_code ?? 'AED';
     const firstErrorRef = useRef<HTMLDivElement | null>(null);
@@ -166,6 +168,30 @@ function NewQuotePageContent() {
         }
     }, [errors]);
 
+    // Template selection handler
+    function handleTemplateSelect(templateId: string) {
+        const template = quoteTemplates.find(t => t.id === templateId);
+        if (template) {
+            setSelectedTemplate(templateId);
+            setValue('brief_text', template.prompt);
+            // Scroll to textarea
+            setTimeout(() => {
+                const textarea = document.querySelector('textarea[id="project-brief"]');
+                if (textarea) {
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
+    }
+
+    // Icon mapping
+    const iconMap: Record<string, React.ReactNode> = {
+        Wind: <Wind className="h-6 w-6" />,
+        Hammer: <Hammer className="h-6 w-6" />,
+        Monitor: <Monitor className="h-6 w-6" />,
+        Sparkles: <Sparkles className="h-6 w-6" />,
+    };
+
     async function onSubmit(values: QuoteFormValues) {
         setFormError(null);
         clearErrors();
@@ -188,7 +214,8 @@ function NewQuotePageContent() {
             tax_rate: values.tax_rate,
         };
 
-        console.log("🚨 FINAL SUBMIT PAYLOAD:", payload);
+        console.log("🚨 Sending payload:", JSON.stringify(payload, null, 2));
+        console.log("📊 Payload size:", JSON.stringify(payload).length, "bytes");
 
         actions.startGenerate();
 
@@ -199,36 +226,37 @@ function NewQuotePageContent() {
                 body: JSON.stringify(payload),
             });
 
+            const contentType = res.headers.get("content-type");
+            if (!res.ok) {
+                if (contentType && contentType.includes("application/json")) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || "API Error");
+                } else {
+                    throw new Error(`Server Error: ${res.status} ${res.statusText}`);
+                }
+            }
+
             const result = (await res.json().catch(() => null)) as QuoteGenerateResponse | null;
 
-            if (!result) {
-                actions.generateFailed('Unable to generate quote. Please try again.');
-                setFormError('Unable to generate quote. Please try again.');
-                return;
-            }
-
-            if (!result.success) {
-                if (result.field && result.field !== 'form') {
+            if (!result || !result.success) {
+                const errorMsg = (result && 'error' in result) ? result.error : 'Unable to generate quote. Please try again.';
+                if (result && 'field' in result && result.field && result.field !== 'form') {
                     setError(result.field, { type: 'server', message: result.error });
-                    actions.generateFailed(result.error);
-                    return;
                 }
-                const limitRes = result as QuoteGenerateResponse & { error?: string; message?: string };
-                if (limitRes.error === 'limit_reached') {
-                    setFormError(limitRes.message ?? result.error);
+                const limitRes = result as any;
+                if (limitRes?.error === 'limit_reached') {
+                    setFormError(limitRes.message ?? errorMsg);
                     setIsUpgradeModalOpen(true);
                     setUsage((u) => (u ? { ...u, remaining: 0, is_limit_reached: true, count: u.limit } : u));
-                    actions.generateFailed(limitRes.message ?? result.error);
-                    return;
                 }
-                actions.generateFailed(result.error);
-                setFormError(result.error);
+                actions.generateFailed(errorMsg);
+                setFormError(errorMsg);
                 return;
             }
 
-            if (!res.ok) {
-                actions.generateFailed('Unable to generate quote. Please try again.');
-                setFormError('Unable to generate quote. Please try again.');
+            if (!result.quote_data?.line_items) {
+                actions.generateFailed('Invalid quote data received.');
+                setFormError('Invalid quote data received.');
                 return;
             }
 
@@ -244,9 +272,10 @@ function NewQuotePageContent() {
             };
 
             actions.generateSuccess(result.quote_data, context);
-        } catch {
-            actions.generateFailed('Unable to generate quote. Please try again.');
-            setFormError('Unable to generate quote. Please try again.');
+        } catch (err: any) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            actions.generateFailed(errorMsg);
+            setFormError(errorMsg);
         }
     }
 
@@ -266,6 +295,16 @@ function NewQuotePageContent() {
                 }),
             });
 
+            const contentType = res.headers.get("content-type");
+            if (!res.ok) {
+                if (contentType && contentType.includes("application/json")) {
+                    const errData = await res.json();
+                    throw new Error(errData.message || "Couldn't apply that change.");
+                } else {
+                    throw new Error(`Server Error: ${res.status} ${res.statusText}`);
+                }
+            }
+
             const result = (await res.json().catch(() => null)) as QuoteReviseResponse | null;
 
             if (!result || !result.success) {
@@ -275,8 +314,9 @@ function NewQuotePageContent() {
             }
 
             actions.reviseSuccess(result.quote_data);
-        } catch {
-            actions.reviseFailed('Unable to revise quote. Please try again.');
+        } catch (err: any) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            actions.reviseFailed(errorMsg);
         }
     }
 
@@ -285,15 +325,35 @@ function NewQuotePageContent() {
     }
 
     function handleReset() {
+        // Nuclear state reset
         actions.reset();
         setFormError(null);
         clearErrors();
+        setSelectedClientId('');
+        setSelectedTemplate(null);
+
+        // Reset all form fields to default values
+        setValue('project_type', '');
+        setValue('brief_text', '');
+        setValue('client_name', '');
+        setValue('client_company', '');
+        setValue('approximate_value_aed', '');
+        setValue('pdf_mode', 'bilingual');
+        setValue('currency', detectCurrencyFromTimezone() as SupportedCurrency);
+        setValue('tax_rate', CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5);
+
+        // Clear sessionStorage explicitly
+        try {
+            sessionStorage.removeItem('qp_quote_draft');
+        } catch (e) {
+            console.error('Failed to clear sessionStorage:', e);
+        }
     }
 
     // ── Loading / auth guards ────────────────────────────────────────────────
     if (loading) {
         return (
-            <main className="min-h-screen bg-slate-950 px-4 py-10">
+            <main className="min-h-screen bg-[#0B0F19] px-4 py-10">
                 <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
                     <LoadingSpinner label="Loading quote builder..." />
                 </div>
@@ -303,7 +363,7 @@ function NewQuotePageContent() {
 
     if (!session) {
         return (
-            <main className="min-h-screen bg-slate-950 px-4 py-10">
+            <main className="min-h-screen bg-[#0B0F19] px-4 py-10">
                 <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
                     <LoadingSpinner label="Redirecting to sign in..." />
                 </div>
@@ -312,265 +372,310 @@ function NewQuotePageContent() {
     }
 
     return (
-        <>
+        <div className="pb-32">
             <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
 
-            <main className="min-h-screen bg-slate-950 px-4 pb-28 pt-6 md:pb-16 md:pt-10">
-                <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-                    <PageHeader
-                        title="New Quote"
-                        subtitle="Fill in the details below — QuotePro will generate a UAE-ready quotation with VAT and structured line items."
-                    />
-
-                    {/* Show form only when in form or generating state */}
-                    {(draft.state === 'form' || draft.state === 'generating') && (
-                        <Card className="p-6 md:p-8">
-                            <form
-                                className="flex flex-col gap-5"
-                                onSubmit={handleSubmit(onSubmit)}
-                                noValidate
-                                aria-busy={isGenerating}
-                            >
-                                <div ref={errors.project_type ? firstErrorRef : null}>
-                                    <Controller
-                                        name="project_type"
-                                        control={control}
-                                        render={({ field }: { field: { value: string; onChange: (v: string) => void } }) => (
-                                            <Select
-                                                label="Project Type"
-                                                placeholder="Select project type"
-                                                options={PROJECT_TYPE_OPTIONS}
-                                                value={field.value}
-                                                onValueChange={field.onChange}
-                                                disabled={isGenerating}
-                                                error={errors.project_type?.message}
-                                            />
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                        PDF Template Language
-                                    </p>
-                                    <p className="mt-1 text-sm text-slate-300">
-                                        Choose the PDF layout that best matches your client region.
-                                    </p>
-                                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                        <Controller
-                                            name="pdf_mode"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => field.onChange('bilingual')}
-                                                    disabled={isGenerating}
-                                                    className={[
-                                                        'rounded-2xl border px-4 py-4 text-left transition',
-                                                        field.value === 'bilingual'
-                                                            ? 'border-teal-500 bg-teal-500/10 text-white'
-                                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
-                                                    ].join(' ')}
-                                                >
-                                                    <div className="text-sm font-semibold">Bilingual (English + Arabic)</div>
-                                                    <div className="mt-1 text-xs text-slate-400">
-                                                        Ideal for UAE/GCC & Pakistan clients.
-                                                    </div>
-                                                </button>
-                                            )}
-                                        />
-                                        <Controller
-                                            name="pdf_mode"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => field.onChange('english_only')}
-                                                    disabled={isGenerating}
-                                                    className={[
-                                                        'rounded-2xl border px-4 py-4 text-left transition',
-                                                        field.value === 'english_only'
-                                                            ? 'border-teal-500 bg-teal-500/10 text-white'
-                                                            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-600',
-                                                    ].join(' ')}
-                                                >
-                                                    <div className="text-sm font-semibold">Standard (English Only)</div>
-                                                    <div className="mt-1 text-xs text-slate-400">
-                                                        Ideal for International / Western clients.
-                                                    </div>
-                                                </button>
-                                            )}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div ref={errors.brief_text ? firstErrorRef : null}>
-                                    <Textarea
-                                        label="Project Brief"
-                                        id="project-brief"
-                                        rows={4}
-                                        required
-                                        placeholder="Describe the work… e.g. Villa AC installation for 4-bedroom home including materials and labor"
-                                        error={errors.brief_text?.message}
+            {/* Show form only when in form or generating state */}
+            {(draft.state === 'form' || draft.state === 'generating') && (
+                <Card className="max-w-3xl mx-auto rounded-2xl border border-slate-800 bg-[#121620] p-6 md:p-8 shadow-xl">
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-bold text-white mb-2">New Quote</h1>
+                        <p className="text-sm text-slate-400">Fill in the details below — QuotePro will generate a UAE-ready quotation with VAT and structured line items.</p>
+                    </div>
+                    <form
+                        className="flex flex-col gap-5"
+                        onSubmit={handleSubmit(onSubmit)}
+                        noValidate
+                        aria-busy={isGenerating}
+                    >
+                        <div ref={errors.project_type ? firstErrorRef : null}>
+                            <Controller
+                                name="project_type"
+                                control={control}
+                                render={({ field }: { field: { value: string; onChange: (v: string) => void } }) => (
+                                    <Select
+                                        label="Project Type"
+                                        placeholder="Select project type"
+                                        options={PROJECT_TYPE_OPTIONS}
+                                        value={field.value}
+                                        onValueChange={field.onChange}
                                         disabled={isGenerating}
-                                        {...register('brief_text')}
+                                        error={errors.project_type?.message}
                                     />
-                                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                                        <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                                            <motion.div
-                                                className={briefLen >= BRIEF_MIN ? 'h-full bg-brand' : 'h-full bg-slate-600'}
-                                                animate={{ width: `${Math.min((briefLen / BRIEF_MIN) * 100, 100)}%` }}
-                                                initial={{ width: '0%' }}
-                                                transition={{ duration: 0.2, ease: 'easeOut' }}
-                                            />
-                                        </div>
-                                        <p className={`shrink-0 text-xs tabular-nums ${briefLen >= BRIEF_MIN ? 'text-brand-light' : 'text-slate-500'}`}>
-                                            {briefLen}/{BRIEF_MAX}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <Select
-                                    label="Select Client"
-                                    placeholder="Select a client or add new"
-                                    options={[
-                                        { value: 'new', label: '+ Add New Client' },
-                                        ...clients.map((client) => ({
-                                            value: client.id,
-                                            label: `${client.name}${client.company ? ` (${client.company})` : ''}`,
-                                        })),
-                                    ]}
-                                    value={selectedClientId}
-                                    onValueChange={(value) => {
-                                        setSelectedClientId(value);
-                                        if (value === 'new') {
-                                            setValue('client_name', '');
-                                            setValue('client_company', '');
-                                        } else {
-                                            const selectedClient = clients.find(c => c.id === value);
-                                            if (selectedClient) {
-                                                setValue('client_name', selectedClient.name);
-                                                setValue('client_company', selectedClient.company || '');
-                                            }
-                                        }
-                                    }}
-                                    disabled={isGenerating}
-                                />
-
-                                <div ref={errors.client_name ? firstErrorRef : null}>
-                                    <Input
-                                        label="Client Name"
-                                        placeholder="Client full name"
-                                        autoComplete="name"
-                                        error={errors.client_name?.message}
-                                        disabled={isGenerating}
-                                        {...register('client_name')}
-                                    />
-                                </div>
-
-                                <Input
-                                    label="Client Company"
-                                    placeholder="Client company name (optional)"
-                                    autoComplete="organization"
-                                    error={errors.client_company?.message}
-                                    disabled={isGenerating}
-                                    {...register('client_company')}
-                                />
-
-                                <div ref={errors.approximate_value_aed ? firstErrorRef : null}>
-                                    <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                                        Approximate Value
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <Controller
-                                            name="currency"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <select
-                                                    value={field.value}
-                                                    onChange={(e) => {
-                                                        const newCurrency = e.target.value as SupportedCurrency;
-                                                        field.onChange(newCurrency);
-                                                        setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
-                                                    }}
-                                                    disabled={isGenerating}
-                                                    className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                                                >
-                                                    {Object.entries(CURRENCIES).map(([code, config]) => (
-                                                        <option key={code} value={code}>
-                                                            {config.symbol}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            )}
-                                        />
-                                        <Input
-                                            type="number"
-                                            inputMode="decimal"
-                                            min="0.01"
-                                            step="0.01"
-                                            placeholder="e.g. 35000"
-                                            error={errors.approximate_value_aed?.message}
-                                            disabled={isGenerating}
-                                            {...register('approximate_value_aed')}
-                                        />
-                                    </div>
-                                </div>
-
-                                {formError && (
-                                    <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                                        {formError}
-                                    </p>
                                 )}
+                            />
+                        </div>
 
-                                <GenerationLoader active={isGenerating} />
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    PDF Template Language
+                                </p>
+                                <p className="mt-1 text-sm text-slate-400">
+                                    Choose the PDF layout that best matches your client region.
+                                </p>
+                            </div>
 
-                                <div className="hidden md:block">
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        size="lg"
-                                        fullWidthMobile
-                                        loading={isGenerating}
-                                        disabled={isGenerating || usage?.is_limit_reached}
-                                        className="w-full"
-                                    >
-                                        {usage?.is_limit_reached ? 'Monthly Limit Reached' : 'Generate My Quote'}
-                                    </Button>
+                            <Controller
+                                name="pdf_mode"
+                                control={control}
+                                render={({ field }) => (
+                                    <div className="inline-flex rounded-full border border-slate-800 bg-[#0F131D] p-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => field.onChange('bilingual')}
+                                            disabled={isGenerating}
+                                            className={[
+                                                'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                                                field.value === 'bilingual'
+                                                    ? 'bg-slate-800 text-white ring-1 ring-slate-600'
+                                                    : 'bg-transparent text-slate-400 hover:text-slate-300',
+                                            ].join(' ')}
+                                        >
+                                            Bilingual (English + Arabic)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => field.onChange('english_only')}
+                                            disabled={isGenerating}
+                                            className={[
+                                                'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                                                field.value === 'english_only'
+                                                    ? 'bg-slate-800 text-white ring-1 ring-slate-600'
+                                                    : 'bg-transparent text-slate-400 hover:text-slate-300',
+                                            ].join(' ')}
+                                        >
+                                            Standard (English Only)
+                                        </button>
+                                    </div>
+                                )}
+                            />
+                        </div>
+
+                        {/* Template Library Section */}
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-sm text-slate-400">Select a template to auto-fill the project brief, or write your own down.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {quoteTemplates.map((template) => {
+                                    const isSelected = selectedTemplate === template.id;
+                                    const colorClasses = {
+                                        blue: {
+                                            border: 'border-blue-800/50',
+                                            bg: 'bg-blue-900/20',
+                                            iconColor: 'text-blue-400',
+                                        },
+                                        amber: {
+                                            border: 'border-amber-800/50',
+                                            bg: 'bg-amber-900/20',
+                                            iconColor: 'text-amber-400',
+                                        },
+                                        green: {
+                                            border: 'border-emerald-800/50',
+                                            bg: 'bg-emerald-900/20',
+                                            iconColor: 'text-emerald-400',
+                                        },
+                                        purple: {
+                                            border: 'border-purple-800/50',
+                                            bg: 'bg-purple-900/20',
+                                            iconColor: 'text-purple-400',
+                                        },
+                                    };
+                                    const colors = colorClasses[template.color as keyof typeof colorClasses];
+
+                                    return (
+                                        <button
+                                            key={template.id}
+                                            type="button"
+                                            onClick={() => handleTemplateSelect(template.id)}
+                                            disabled={isGenerating}
+                                            className={`group w-full text-left rounded-lg border transition-all p-4 cursor-pointer hover:scale-[1.02] ${colors.border} ${colors.bg} ${isSelected ? 'ring-2 ring-slate-500' : ''}`}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className={`shrink-0 ${colors.iconColor}`}>
+                                                    {iconMap[template.icon]}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-base mb-0.5 text-slate-200">{template.title}</h3>
+                                                    <p className="text-xs text-slate-400 mb-2">{template.description}</p>
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-950/40 text-slate-400">
+                                                        {template.category}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div ref={errors.brief_text ? firstErrorRef : null}>
+                            <Textarea
+                                label="Project Brief"
+                                id="project-brief"
+                                rows={4}
+                                required
+                                placeholder="Describe the work… e.g. Villa AC installation for 4-bedroom home including materials and labor"
+                                error={errors.brief_text?.message}
+                                disabled={isGenerating}
+                                {...register('brief_text')}
+                            />
+                            <div className="mt-1.5 flex items-center justify-between gap-2">
+                                <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                                    <motion.div
+                                        className={briefLen >= BRIEF_MIN ? 'h-full bg-brand' : 'h-full bg-slate-600'}
+                                        animate={{ width: `${Math.min((briefLen / BRIEF_MIN) * 100, 100)}%` }}
+                                        initial={{ width: '0%' }}
+                                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                                    />
                                 </div>
-                            </form>
-                        </Card>
-                    )}
+                                <p className={`shrink-0 text-xs tabular-nums ${briefLen >= BRIEF_MIN ? 'text-brand-light' : 'text-slate-500'}`}>
+                                    {briefLen}/{BRIEF_MAX}
+                                </p>
+                            </div>
+                        </div>
 
-                    {/* Show preview when quote is generated */}
-                    {isPreview && draft.quote_data && draft.context && (
-                        <QuotePreview
-                            quoteData={draft.quote_data}
-                            context={draft.context}
-                            revisions={draft.revisions}
-                            revisionsRemaining={revisionsRemaining}
-                            isRevising={isRevising}
-                            isSaving={isSaving}
-                            errorMessage={draft.error_message}
-                            currencyCode={draft.context.currency || watch('currency')}
-                            onRevise={handleRevise}
-                            onConfirm={handleConfirm}
-                            onReset={handleReset}
+                        <Select
+                            label="Select Client"
+                            placeholder="Select a client or add new"
+                            options={[
+                                { value: 'new', label: '+ Add New Client' },
+                                ...clients.map((client) => ({
+                                    value: client.id,
+                                    label: `${client.name}${client.company ? ` (${client.company})` : ''}`,
+                                })),
+                            ]}
+                            value={selectedClientId}
+                            onValueChange={(value) => {
+                                setSelectedClientId(value);
+                                if (value === 'new') {
+                                    setValue('client_name', '');
+                                    setValue('client_company', '');
+                                } else {
+                                    const selectedClient = clients.find(c => c.id === value);
+                                    if (selectedClient) {
+                                        setValue('client_name', selectedClient.name);
+                                        setValue('client_company', selectedClient.company || '');
+                                    }
+                                }
+                            }}
+                            disabled={isGenerating}
                         />
-                    )}
-                </div>
-            </main>
+
+                        <div ref={errors.client_name ? firstErrorRef : null}>
+                            <Input
+                                label="Client Name"
+                                placeholder="Client full name"
+                                autoComplete="name"
+                                error={errors.client_name?.message}
+                                disabled={isGenerating}
+                                {...register('client_name')}
+                            />
+                        </div>
+
+                        <Input
+                            label="Client Company"
+                            placeholder="Client company name (optional)"
+                            autoComplete="organization"
+                            error={errors.client_company?.message}
+                            disabled={isGenerating}
+                            {...register('client_company')}
+                        />
+
+                        <div ref={errors.approximate_value_aed ? firstErrorRef : null}>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                                Approximate Value
+                            </label>
+                            <div className="flex gap-2">
+                                <Controller
+                                    name="currency"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <select
+                                            value={field.value}
+                                            onChange={(e) => {
+                                                const newCurrency = e.target.value as SupportedCurrency;
+                                                field.onChange(newCurrency);
+                                                setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
+                                            }}
+                                            disabled={isGenerating}
+                                            className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                                        >
+                                            {Object.entries(CURRENCIES).map(([code, config]) => (
+                                                <option key={code} value={code}>
+                                                    {config.symbol}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                />
+                                <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0.01"
+                                    step="0.01"
+                                    placeholder="e.g. 35000"
+                                    error={errors.approximate_value_aed?.message}
+                                    disabled={isGenerating}
+                                    {...register('approximate_value_aed')}
+                                />
+                            </div>
+                        </div>
+
+                        {formError && (
+                            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                                {formError}
+                            </p>
+                        )}
+
+                        <GenerationLoader active={isGenerating} />
+
+                        <div className="hidden md:block">
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                size="lg"
+                                fullWidthMobile
+                                loading={isGenerating}
+                                disabled={isGenerating || usage?.is_limit_reached}
+                                className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold"
+                            >
+                                {usage?.is_limit_reached ? 'Monthly Limit Reached' : 'Generate My Quote'}
+                            </Button>
+                        </div>
+                    </form>
+                </Card>
+            )}
+
+            {/* Show preview when quote is generated */}
+            {isPreview && draft.quote_data?.line_items && draft.context && (
+                <QuotePreview
+                    quoteData={draft.quote_data}
+                    context={draft.context}
+                    revisions={draft.revisions}
+                    revisionsRemaining={revisionsRemaining}
+                    isRevising={isRevising}
+                    isSaving={isSaving}
+                    errorMessage={draft.error_message}
+                    currencyCode={draft.context.currency || watch('currency')}
+                    onRevise={handleRevise}
+                    onConfirm={handleConfirm}
+                    onReset={handleReset}
+                />
+            )}
 
             {/* Mobile sticky action bar - only show in form state */}
             {draft.state === 'form' && (
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/95 px-4 pb-safe pt-3 backdrop-blur-sm md:hidden">
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0B0F19]/95 px-4 pb-safe pt-3 backdrop-blur-sm md:hidden">
                     <Button
                         type="button"
                         variant="primary"
                         size="lg"
                         loading={isGenerating}
                         disabled={isGenerating || usage?.is_limit_reached}
-                        className="w-full"
+                        className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold"
                         onClick={() => {
                             void handleSubmit(onSubmit)();
                         }}
@@ -579,6 +684,6 @@ function NewQuotePageContent() {
                     </Button>
                 </div>
             )}
-        </>
+        </div>
     );
 }

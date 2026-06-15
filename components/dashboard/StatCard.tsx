@@ -52,7 +52,7 @@ export function StatCard({ label, value, icon, accent = false, subtext }: StatCa
                     {value}
                 </p>
                 {subtext && (
-                    <p className="text-sm text-gray-400 mt-1 truncate">
+                    <p className="text-sm text-slate-400 mt-1 truncate">
                         {subtext}
                     </p>
                 )}

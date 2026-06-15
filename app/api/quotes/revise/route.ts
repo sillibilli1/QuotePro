@@ -19,7 +19,9 @@ Your quotes follow professional business standards:
 - Include standard terms: validity period (30 days), payment terms (50% advance on confirmation, 50% on project completion)
 - Scope descriptions are specific, not vague — "Supply and install 4 units of 2-ton Daikin split AC systems" not "AC installation"
 
-You are REVISING an existing quote. Apply the user's requested change and return the COMPLETE updated quote as a valid JSON object in the exact same schema. Recalculate all subtotals, the 5% VAT, and the total so they are internally consistent. Do not add commentary. Only output the JSON object.
+You are REVISING an existing quote. Apply the user's requested change and return the COMPLETE updated quote as a valid JSON object in the exact same schema. Recalculate all subtotals, the 5% VAT, and the total so they are internally consistent.
+
+CRITICAL: You are an API. You must respond ONLY with valid JSON. Do not include markdown formatting (no \`\`\`json), no backticks, and absolutely zero conversational text. Your output must be a JSON object with the exact schema below.
 
 Output format:
 {
@@ -146,6 +148,15 @@ function sanitizeGeneratedQuoteData(data: GeneratedQuoteData): GeneratedQuoteDat
     };
 }
 
+function cleanAIResponse(responseText: string): string {
+    // Strip markdown code blocks and backticks that AI might add
+    return responseText
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .replace(/^`+|`+$/g, '')
+        .trim();
+}
+
 async function reviseQuote(
     currentQuoteData: GeneratedQuoteData,
     instruction: string,
@@ -164,7 +175,16 @@ async function reviseQuote(
     for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
             const responseText = await callOpenAI(systemPrompt, userPrompt);
-            const parsed = JSON.parse(responseText) as unknown;
+            const cleanedResponse = cleanAIResponse(responseText);
+
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(cleanedResponse);
+            } catch (parseError) {
+                console.error('JSON parse error. Raw AI response:', responseText);
+                throw new Error('AI returned malformed JSON');
+            }
+
             const validated = generatedQuoteDataSchema.parse(parsed);
             return sanitizeGeneratedQuoteData(validated);
         } catch (error) {

@@ -61,37 +61,37 @@ export function QuoteListItem({
     const canAction = quote.status !== 'won' && quote.status !== 'lost';
 
     return (
-        <article className="group flex flex-col gap-3 px-5 py-4 text-slate-900 transition-colors hover:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <article className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             {/* Left: meta */}
             <div className="flex min-w-0 flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                     <Link
                         href={`/quotes/${quote.id}`}
-                        className="truncate text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+                        className="truncate text-sm font-semibold text-slate-200 transition hover:text-white"
                     >
                         {quote.quote_number || quote.id}
                     </Link>
                     <StatusBadge status={quote.status} dot />
                     {quote.viewed_at && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
                             <Check className="h-3 w-3" aria-hidden="true" />
                             Viewed
                         </span>
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
-                    <span className="truncate font-medium text-slate-700">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                    <span className="truncate font-medium text-slate-400">
                         {quote.client_name || 'Unknown Client'}
                     </span>
                     {quote.client_company && (
                         <>
                             <span aria-hidden="true">·</span>
-                            <span className="truncate text-slate-500">{quote.client_company}</span>
+                            <span className="truncate text-slate-400">{quote.client_company}</span>
                         </>
                     )}
                     <span aria-hidden="true">·</span>
-                    <time className="text-slate-500" dateTime={quote.created_at} title={new Date(quote.created_at).toLocaleDateString()}>
+                    <time className="text-slate-400" dateTime={quote.created_at} title={new Date(quote.created_at).toLocaleDateString()}>
                         {relativeDate(quote.created_at)}
                     </time>
                 </div>
@@ -99,7 +99,7 @@ export function QuoteListItem({
 
             {/* Right: amount + actions */}
             <div className="flex shrink-0 items-center gap-3">
-                <span className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+                <span className="font-mono text-sm font-semibold tabular-nums text-white">
                     {formatMono(Number(quote.total_aed ?? 0), currencyCode)}
                 </span>
 
