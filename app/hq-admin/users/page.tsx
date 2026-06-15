@@ -67,8 +67,13 @@ export default function UsersPage() {
                                 <td className="px-4 py-3 text-sm">{user.full_name || '—'}</td>
                                 <td className="px-4 py-3 text-sm">{user.company_name || '—'}</td>
                                 <td className="px-4 py-3">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${user.plan === 'growth' ? 'bg-purple-900/30 text-purple-400' : user.plan === 'starter' ? 'bg-blue-900/30 text-blue-400' : 'bg-gray-800 text-gray-400'}`}>
-                                        {user.plan}
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${user.is_subscribed && user.plan === 'growth'
+                                            ? 'bg-purple-900/30 text-purple-400'
+                                            : user.is_subscribed && user.plan === 'starter'
+                                                ? 'bg-blue-900/30 text-blue-400'
+                                                : 'bg-gray-800 text-gray-400'
+                                        }`}>
+                                        {user.is_subscribed ? user.plan : 'free'}
                                         {user.is_subscribed && ' ✓'}
                                     </span>
                                 </td>

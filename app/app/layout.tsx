@@ -23,14 +23,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
     const { data: profile } = (await supabase
         .from('profiles')
-        .select('plan')
+        .select('plan, is_subscribed')
         .eq('id', user.id)
-        .maybeSingle()) as { data: Pick<import('@/types').ProfileRecord, 'plan'> | null };
+        .maybeSingle()) as { data: Pick<import('@/types').ProfileRecord, 'plan' | 'is_subscribed'> | null };
 
     const plan: PlanTier = (profile?.plan as PlanTier | null) ?? 'free';
+    const isSubscribed = profile?.is_subscribed ?? false;
 
     return (
-        <AppShell userEmail={user.email ?? ''} plan={plan}>
+        <AppShell userEmail={user.email ?? ''} plan={plan} isSubscribed={isSubscribed}>
             {children}
         </AppShell>
     );

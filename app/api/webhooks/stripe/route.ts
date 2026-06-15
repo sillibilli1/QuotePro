@@ -133,7 +133,7 @@ export async function POST(request: Request) {
                         .from('profiles')
                         .update({
                             is_subscribed: false,
-                            plan: null,
+                            plan: 'free',
                             stripe_subscription_id: null,
                         })
                         .eq('id', userId);
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
                         .from('profiles')
                         .update({
                             is_subscribed: false,
-                            plan: null,
+                            plan: 'free',
                             stripe_subscription_id: null,
                         })
                         .eq('stripe_subscription_id', subscription.id);

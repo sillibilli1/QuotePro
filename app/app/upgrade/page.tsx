@@ -31,7 +31,8 @@ export default async function UpgradePage() {
         };
 
     const countryCode = profile?.country_code ?? 'AE';
-    const currentPlan = profile?.plan ?? null;
+    // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
+    const currentPlan = profile?.is_subscribed ? profile.plan : 'free';
 
     // ── Pricing for this user's region ────────────────────────────────────
     const pricing = getPricing(countryCode);

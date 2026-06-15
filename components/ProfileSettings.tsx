@@ -31,17 +31,12 @@ const PLAN_DESCRIPTION: Record<PlanTier, string> = {
     growth: 'Unlimited quotes · PDF export · Share links · Priority support',
 };
 
-// Normalize plan to PlanTier (lowercase, fallback to 'free')
-function normalizePlan(plan: PlanTier): PlanTier {
-    const normalized = plan.toLowerCase() as PlanTier;
-    return ['free', 'starter', 'growth'].includes(normalized) ? normalized : 'free';
-}
-
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface ProfileSettingsProps {
     initialValues: ProfileFormValues;
     userEmail: string;
     plan: PlanTier;
+    isSubscribed: boolean;
 }
 
 /**
@@ -49,7 +44,7 @@ export interface ProfileSettingsProps {
  * Sections: Personal | Company | Plan
  * Save logic is identical to ProfileForm — only the UI is restructured.
  */
-export function ProfileSettings({ initialValues, userEmail, plan }: ProfileSettingsProps) {
+export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed }: ProfileSettingsProps) {
     const supabase = createClient();
     const router = useRouter();
     const { toasts, addToast, removeToast } = useToasts();
@@ -57,8 +52,10 @@ export function ProfileSettings({ initialValues, userEmail, plan }: ProfileSetti
     const [values, setValues] = useState<ProfileFormValues>(initialValues);
     const [saving, setSaving] = useState(false);
 
-    // Normalize plan to handle case mismatches
-    const normalizedPlan = normalizePlan(plan);
+    // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
+    const normalizedPlan: PlanTier = isSubscribed && ['starter', 'growth'].includes(plan.toLowerCase())
+        ? (plan.toLowerCase() as PlanTier)
+        : 'free';
 
     // ── Track dirty state so we only show Save when something changed ─────────
     const isDirty =

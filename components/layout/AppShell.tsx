@@ -28,13 +28,14 @@ const PLAN_VARIANT: Record<PlanTier, 'default' | 'primary' | 'success'> = {
 interface TopBarProps {
     userEmail: string;
     plan: PlanTier | null;
+    isSubscribed: boolean;
     onSignOut: () => void;
 }
 
-function TopBar({ userEmail, plan, onSignOut }: TopBarProps) {
-    // Normalize plan to lowercase and default to 'free' if invalid
+function TopBar({ userEmail, plan, isSubscribed, onSignOut }: TopBarProps) {
+    // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
     const normalizedPlan = plan?.toLowerCase() as PlanTier | null;
-    const tier: PlanTier = (normalizedPlan && ['free', 'starter', 'growth'].includes(normalizedPlan))
+    const tier: PlanTier = isSubscribed && normalizedPlan && ['starter', 'growth'].includes(normalizedPlan)
         ? normalizedPlan
         : 'free';
 
@@ -151,6 +152,7 @@ interface AppShellProps {
     children: ReactNode;
     userEmail: string;
     plan: PlanTier | null;
+    isSubscribed: boolean;
     /** narrow = max-w-3xl (forms), wide = max-w-5xl (lists/dashboard). Default: wide */
     contentWidth?: ContentWidth;
 }
@@ -166,6 +168,7 @@ export function AppShell({
     children,
     userEmail,
     plan,
+    isSubscribed,
     contentWidth = 'wide',
 }: AppShellProps) {
     const router = useRouter();
@@ -180,7 +183,7 @@ export function AppShell({
     return (
         <div className="min-h-screen bg-slate-950">
             {/* ── Sticky top bar ───────────────────────────── */}
-            <TopBar userEmail={userEmail} plan={plan} onSignOut={handleSignOut} />
+            <TopBar userEmail={userEmail} plan={plan} isSubscribed={isSubscribed} onSignOut={handleSignOut} />
 
             {/* ── Desktop sidebar ──────────────────────────── */}
             <Sidebar />

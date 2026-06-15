@@ -13,6 +13,7 @@ export async function POST(
         .from('profiles')
         .update({
             is_subscribed: false,
+            plan: 'free',
             stripe_subscription_id: null,
         })
         .eq('id', params.id);

@@ -57,10 +57,7 @@ export function PricingCard({ tier, pricing, currentPlan, isPublic = false, bill
     const isGrowth = tier === 'growth';
     const isFree = tier === 'free';
 
-    const isCurrent =
-        (!currentPlan && isFree) ||
-        (currentPlan === 'starter' && isStarter) ||
-        (currentPlan === 'growth' && isGrowth);
+    const isCurrent = currentPlan === tier || (!currentPlan && isFree);
 
     // Calculate annual prices (monthly * 10)
     const annualMultiplier = 10;
