@@ -19,11 +19,20 @@ export async function POST(
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    // Calculate subscription end date based on billing interval
+    const now = new Date();
+    const billingInterval = paymentRequest.billing_interval || 'monthly';
+    const subscriptionEndsAt = billingInterval === 'annual'
+        ? new Date(now.setFullYear(now.getFullYear() + 1))
+        : new Date(now.setMonth(now.getMonth() + 1));
+
     await supabase
         .from('profiles')
         .update({
             is_subscribed: true,
             plan: paymentRequest.plan,
+            billing_interval: billingInterval,
+            subscription_ends_at: subscriptionEndsAt.toISOString(),
         })
         .eq('id', paymentRequest.user_id);
 
@@ -43,6 +52,8 @@ export async function POST(
             request_id: params.id,
             user_id: paymentRequest.user_id,
             plan: paymentRequest.plan,
+            billing_interval: billingInterval,
+            subscription_ends_at: subscriptionEndsAt.toISOString(),
         },
     });
 

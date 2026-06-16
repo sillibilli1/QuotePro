@@ -27,9 +27,10 @@ export async function POST(request: Request) {
             plan?: string;
             amount?: string;
             reference?: string;
+            billingInterval?: 'monthly' | 'annual';
         };
 
-        const { plan, amount, reference } = body;
+        const { plan, amount, reference, billingInterval = 'monthly' } = body;
 
         if (!plan || !amount || !reference) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
                 currency,
                 amount: numericAmount,
                 reference,
+                billing_interval: billingInterval,
                 status: 'pending',
             });
 
@@ -84,14 +86,13 @@ export async function POST(request: Request) {
           <table style="border-collapse:collapse;width:100%;max-width:500px">
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">User Email</td><td style="padding:8px;border:1px solid #ddd">${user.email}</td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">User ID</td><td style="padding:8px;border:1px solid #ddd">${user.id}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Plan</td><td style="padding:8px;border:1px solid #ddd">${plan}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Plan</td><td style="padding:8px;border:1px solid #ddd">${plan} (${billingInterval})</td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Amount</td><td style="padding:8px;border:1px solid #ddd">${amount}</td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Reference</td><td style="padding:8px;border:1px solid #ddd">${reference}</td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold">Timestamp</td><td style="padding:8px;border:1px solid #ddd">${new Date().toISOString()}</td></tr>
           </table>
           <p style="margin-top:16px;color:#666">
-            Please verify the transfer in your bank portal, then manually activate the user's plan
-            in the Supabase dashboard (profiles table → set is_subscribed=true, plan='${plan}').
+            Please verify the transfer in your bank portal, then approve via HQ Admin panel.
           </p>
         `,
         };

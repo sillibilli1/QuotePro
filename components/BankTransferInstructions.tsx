@@ -50,11 +50,14 @@ export function BankTransferInstructions({
 }: BankTransferInstructionsProps) {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
     const { toasts, addToast, removeToast } = useToasts();
 
     const plan = pricing[selectedPlan];
-    const priceDisplay = `${plan.currency} ${plan.price.toLocaleString()}`;
-    const reference = `QuotePro - ${userEmail} - ${selectedPlan}`;
+    const basePrice = plan.price;
+    const displayPrice = billingInterval === 'annual' ? basePrice * 10 : basePrice;
+    const priceDisplay = `${plan.currency} ${displayPrice.toLocaleString()}`;
+    const reference = `QuotePro - ${userEmail} - ${selectedPlan} - ${billingInterval}`;
 
     const bankName = process.env.NEXT_PUBLIC_BANK_NAME ?? 'Mashreq Bank';
     const iban = process.env.NEXT_PUBLIC_BANK_IBAN ?? 'AE360330000019102074289';
@@ -68,7 +71,7 @@ export function BankTransferInstructions({
             const res = await fetch('/api/billing/manual-payment-notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plan: selectedPlan, amount: priceDisplay, reference }),
+                body: JSON.stringify({ plan: selectedPlan, amount: priceDisplay, reference, billingInterval }),
             });
 
             if (!res.ok) {
@@ -102,6 +105,22 @@ export function BankTransferInstructions({
 
     return (
         <div className="flex flex-col gap-6">
+            {/* Billing Interval Toggle */}
+            <div className="flex rounded-xl border border-white/10 p-1">
+                <button
+                    onClick={() => setBillingInterval('monthly')}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingInterval === 'monthly' ? 'bg-brand text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                    Monthly
+                </button>
+                <button
+                    onClick={() => setBillingInterval('annual')}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingInterval === 'annual' ? 'bg-brand text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                    Annual (10 months)
+                </button>
+            </div>
+
             {/* Amount */}
             <div className="rounded-2xl border border-brand/20 bg-brand/5 p-5">
                 <p className="text-xs font-semibold uppercase tracking-widest text-brand-light">
@@ -109,9 +128,9 @@ export function BankTransferInstructions({
                 </p>
                 <p className="mt-2 text-3xl font-bold text-white">
                     {priceDisplay}
-                    <span className="ml-2 text-base font-normal text-slate-400">/month</span>
+                    <span className="ml-2 text-base font-normal text-slate-400">/{billingInterval === 'annual' ? 'year' : 'month'}</span>
                 </p>
-                <p className="mt-1 text-sm text-slate-400 capitalize">Plan: {selectedPlan}</p>
+                <p className="mt-1 text-sm text-slate-400 capitalize">Plan: {selectedPlan} ({billingInterval})</p>
             </div>
 
             {/* Bank details */}

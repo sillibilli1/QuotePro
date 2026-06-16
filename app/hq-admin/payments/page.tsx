@@ -10,6 +10,7 @@ interface PaymentRequest {
     currency: string;
     amount: number;
     reference: string;
+    billing_interval: 'monthly' | 'annual';
     created_at: string;
     user: {
         email: string;
@@ -65,7 +66,7 @@ export default function PaymentsPage() {
                                 </td>
                                 <td className="px-4 py-3">
                                     <span className={`px-2 py-1 rounded text-xs font-medium ${request.plan === 'growth' ? 'bg-purple-900/30 text-purple-400' : 'bg-blue-900/30 text-blue-400'}`}>
-                                        {request.plan}
+                                        {request.plan} ({request.billing_interval || 'monthly'})
                                     </span>
                                 </td>
                                 <td className="px-4 py-3 text-sm font-medium">{request.currency} {request.amount.toLocaleString()}</td>
