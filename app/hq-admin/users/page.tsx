@@ -10,12 +10,14 @@ interface User {
     full_name: string;
     company_name: string;
     plan: string;
+    billing_interval: 'monthly' | 'annual' | null;
     is_subscribed: boolean;
     quotes_used: number;
     quote_count: number;
     created_at: string;
     country: string;
     currency_code: string;
+    subscription_ends_at: string | null;
 }
 
 export default function UsersPage() {
@@ -67,15 +69,22 @@ export default function UsersPage() {
                                 <td className="px-4 py-3 text-sm">{user.full_name || '—'}</td>
                                 <td className="px-4 py-3 text-sm">{user.company_name || '—'}</td>
                                 <td className="px-4 py-3">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${user.is_subscribed && user.plan === 'growth'
+                                    <div className="flex flex-col gap-1">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${user.is_subscribed && user.plan === 'growth'
                                             ? 'bg-purple-900/30 text-purple-400'
                                             : user.is_subscribed && user.plan === 'starter'
                                                 ? 'bg-blue-900/30 text-blue-400'
                                                 : 'bg-gray-800 text-gray-400'
-                                        }`}>
-                                        {user.is_subscribed ? user.plan : 'free'}
-                                        {user.is_subscribed && ' ✓'}
-                                    </span>
+                                            }`}>
+                                            {user.is_subscribed ? `${user.plan}${user.billing_interval ? ` (${user.billing_interval})` : ''}` : 'free'}
+                                            {user.is_subscribed && ' ✓'}
+                                        </span>
+                                        {user.subscription_ends_at && (
+                                            <span className="text-[10px] text-gray-500">
+                                                Expires {new Date(user.subscription_ends_at).toLocaleDateString()}
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-4 py-3 text-sm">{user.quote_count} / {user.quotes_used}</td>
                                 <td className="px-4 py-3 text-sm">{user.country} ({user.currency_code})</td>

@@ -118,9 +118,22 @@ export function PricingCard({ tier, pricing, currentPlan, isPublic = false, bill
 
         try {
             const priceId = getStripePriceId(currency, tier as 'starter' | 'growth', billingPeriod);
+            console.log('🔍 Upgrade attempt:', {
+                tier,
+                currency,
+                billingPeriod,
+                priceId,
+                priceIdValid: priceId?.startsWith('price_'),
+            });
+
+            if (!priceId || priceId === '') {
+                throw new Error(`No price ID configured for ${currency} ${tier} ${billingPeriod}`);
+            }
+
             await onUpgrade(priceId);
         } catch (error) {
-            console.error('Upgrade error:', error);
+            console.error('❌ Upgrade error:', error);
+            alert(`Upgrade failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -234,6 +247,8 @@ export function PricingCards({ pricing, currentPlan, isPublic = false }: Pricing
     const handleUpgrade = async (priceId: string) => {
         setIsLoading(true);
         try {
+            console.log('💳 Calling /api/checkout with priceId:', priceId);
+
             const res = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -241,13 +256,21 @@ export function PricingCards({ pricing, currentPlan, isPublic = false }: Pricing
             });
 
             const data = await res.json();
+
+            console.log('📥 Checkout response:', { status: res.status, data });
+
+            if (!res.ok) {
+                throw new Error(data.error || `HTTP ${res.status}`);
+            }
+
             if (data.url) {
                 window.location.href = data.url;
             } else {
                 throw new Error('No checkout URL returned');
             }
         } catch (error) {
-            console.error('Checkout error:', error);
+            console.error('❌ Checkout error:', error);
+            alert(`Checkout failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             setIsLoading(false);
         }
     };

@@ -2,21 +2,9 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripeClient } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase/server';
-import { STRIPE_PRICES } from '@/lib/stripe-config';
+import { getPlanFromPriceId } from '@/lib/stripe-config';
 
 export const dynamic = 'force-dynamic';
-
-// Map Stripe Price IDs to plan names (returns lowercase: 'starter' | 'growth')
-function getPlanFromPriceId(priceId: string): 'starter' | 'growth' | null {
-    for (const plans of Object.values(STRIPE_PRICES)) {
-        for (const [planName, prices] of Object.entries(plans)) {
-            if (prices.monthly === priceId || prices.annual === priceId) {
-                return planName as 'starter' | 'growth';
-            }
-        }
-    }
-    return null;
-}
 
 /**
  * POST /api/webhooks/stripe
@@ -53,45 +41,96 @@ export async function POST(request: Request) {
             // ── Subscription created / payment succeeded ───────────────────────
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
+                console.log('[stripe-webhook] checkout.session.completed received:', {
+                    sessionId: session.id,
+                    customer: session.customer,
+                    subscription: session.subscription,
+                    metadata: session.metadata,
+                });
 
                 const userId = session.metadata?.userId;
                 let plan = session.metadata?.plan;
 
                 if (!userId) {
-                    console.error('[stripe-webhook] Missing userId in session metadata', session.id);
+                    console.error('[stripe-webhook] ❌ CRITICAL: Missing userId in session metadata', {
+                        sessionId: session.id,
+                        metadata: session.metadata,
+                        customer: session.customer,
+                    });
                     break;
                 }
 
-                // If plan is missing, try to derive it from the subscription
-                if (!plan && session.subscription) {
+                let billingInterval: 'monthly' | 'annual' | null = null;
+                let subscriptionEndsAt: string | null = null;
+
+                // Always retrieve subscription to get billing interval and period end
+                if (session.subscription) {
                     const stripe = getStripeClient();
                     const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
                     const priceId = subscription.items.data[0]?.price.id;
+                    console.log('[stripe-webhook] Retrieved priceId:', priceId);
+
                     if (priceId) {
-                        plan = getPlanFromPriceId(priceId) || undefined;
+                        const planInfo = getPlanFromPriceId(priceId);
+                        console.log('[stripe-webhook] getPlanFromPriceId result:', planInfo);
+
+                        if (planInfo) {
+                            // Use metadata plan if available, otherwise derive from priceId
+                            if (!plan) {
+                                plan = planInfo.plan;
+                            }
+                            billingInterval = planInfo.interval;
+                        } else {
+                            console.error('[stripe-webhook] ❌ CRITICAL: getPlanFromPriceId returned null for priceId:', priceId);
+                        }
                     }
+                    // Convert Unix timestamp (seconds) to ISO string
+                    subscriptionEndsAt = new Date(subscription.current_period_end * 1000).toISOString();
                 }
 
                 // Safety: Only update if we have a valid plan (never write null)
                 if (!plan) {
-                    console.error('[stripe-webhook] Could not determine plan for session', session.id, 'priceId may not match config');
+                    console.error('[stripe-webhook] ❌ CRITICAL: Could not determine plan for session', {
+                        sessionId: session.id,
+                        metadata: session.metadata,
+                        subscription: session.subscription,
+                    });
                     break;
                 }
 
-                const { error } = await admin
+                console.log('[stripe-webhook] Attempting database update:', {
+                    userId,
+                    plan: plan.toLowerCase(),
+                    billingInterval,
+                    subscriptionEndsAt,
+                });
+
+                const { error, data } = await admin
                     .from('profiles')
                     .update({
                         is_subscribed: true,
                         plan: plan.toLowerCase(),
+                        billing_interval: billingInterval,
+                        subscription_ends_at: subscriptionEndsAt,
                         stripe_customer_id: session.customer as string,
                         stripe_subscription_id: session.subscription as string,
                     })
-                    .eq('id', userId);
+                    .eq('id', userId)
+                    .select();
 
                 if (error) {
-                    console.error('[stripe-webhook] Database update failed:', error);
+                    console.error('[stripe-webhook] ❌ Database update failed:', {
+                        error,
+                        userId,
+                        plan,
+                    });
+                } else if (!data || data.length === 0) {
+                    console.error('[stripe-webhook] ❌ CRITICAL: No rows updated - user not found?', {
+                        userId,
+                        plan,
+                    });
                 } else {
-                    console.log(`[stripe-webhook] checkout.session.completed — userId=${userId} plan=${plan} ✓`);
+                    console.log(`[stripe-webhook] ✅ checkout.session.completed — userId=${userId} plan=${plan} billingInterval=${billingInterval}`);
                 }
                 break;
             }
@@ -99,23 +138,85 @@ export async function POST(request: Request) {
             // ── Subscription renewed / reactivated ─────────────────────────────
             case 'customer.subscription.updated': {
                 const subscription = event.data.object as Stripe.Subscription;
+                console.log('[stripe-webhook] customer.subscription.updated received:', {
+                    subscriptionId: subscription.id,
+                    status: subscription.status,
+                    metadata: subscription.metadata,
+                    priceId: subscription.items.data[0]?.price.id,
+                });
 
                 const userId = subscription.metadata?.userId;
-                const plan = subscription.metadata?.plan;
+                let plan = subscription.metadata?.plan;
 
-                if (!userId) break;
+                if (!userId) {
+                    console.error('[stripe-webhook] ❌ CRITICAL: Missing userId in subscription metadata', {
+                        subscriptionId: subscription.id,
+                        metadata: subscription.metadata,
+                    });
+                    break;
+                }
 
                 const isActive =
                     subscription.status === 'active' || subscription.status === 'trialing';
 
-                await admin
+                let billingInterval: 'monthly' | 'annual' | null = null;
+                let subscriptionEndsAt: string | null = null;
+
+                // Derive plan and interval from price ID if not in metadata
+                if (isActive && !plan) {
+                    const priceId = subscription.items.data[0]?.price.id;
+                    console.log('[stripe-webhook] Deriving plan from priceId:', priceId);
+
+                    if (priceId) {
+                        const planInfo = getPlanFromPriceId(priceId);
+                        console.log('[stripe-webhook] getPlanFromPriceId result:', planInfo);
+
+                        if (planInfo) {
+                            plan = planInfo.plan;
+                            billingInterval = planInfo.interval;
+                        } else {
+                            console.error('[stripe-webhook] ❌ CRITICAL: getPlanFromPriceId returned null for priceId:', priceId);
+                        }
+                    }
+                }
+
+                // Convert Unix timestamp (seconds) to ISO string
+                if (isActive) {
+                    subscriptionEndsAt = new Date(subscription.current_period_end * 1000).toISOString();
+                }
+
+                console.log('[stripe-webhook] Attempting database update:', {
+                    userId,
+                    isActive,
+                    plan: isActive && plan ? plan.toLowerCase() : null,
+                    billingInterval,
+                    subscriptionEndsAt,
+                });
+
+                const { error, data } = await admin
                     .from('profiles')
                     .update({
                         is_subscribed: isActive,
                         plan: isActive && plan ? plan.toLowerCase() : null,
+                        billing_interval: isActive ? billingInterval : null,
+                        subscription_ends_at: subscriptionEndsAt,
                         stripe_subscription_id: subscription.id,
                     })
-                    .eq('id', userId);
+                    .eq('id', userId)
+                    .select();
+
+                if (error) {
+                    console.error('[stripe-webhook] ❌ Database update failed:', {
+                        error,
+                        userId,
+                    });
+                } else if (!data || data.length === 0) {
+                    console.error('[stripe-webhook] ❌ CRITICAL: No rows updated - user not found?', {
+                        userId,
+                    });
+                } else {
+                    console.log(`[stripe-webhook] ✅ customer.subscription.updated — userId=${userId} isActive=${isActive} plan=${plan}`);
+                }
 
                 break;
             }
@@ -134,6 +235,8 @@ export async function POST(request: Request) {
                         .update({
                             is_subscribed: false,
                             plan: 'free',
+                            billing_interval: null,
+                            subscription_ends_at: null,
                             stripe_subscription_id: null,
                         })
                         .eq('id', userId);
@@ -144,6 +247,8 @@ export async function POST(request: Request) {
                         .update({
                             is_subscribed: false,
                             plan: 'free',
+                            billing_interval: null,
+                            subscription_ends_at: null,
                             stripe_subscription_id: null,
                         })
                         .eq('stripe_subscription_id', subscription.id);

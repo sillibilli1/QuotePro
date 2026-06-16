@@ -7,8 +7,10 @@ interface Subscription {
     email: string;
     full_name: string;
     plan: string;
+    billing_interval: 'monthly' | 'annual' | null;
     currency_code: string;
     created_at: string;
+    subscription_ends_at: string | null;
 }
 
 export default function SubscriptionsPage() {
@@ -35,8 +37,10 @@ export default function SubscriptionsPage() {
                         <tr>
                             <th className="px-4 py-3 text-left">User</th>
                             <th className="px-4 py-3 text-left">Plan</th>
+                            <th className="px-4 py-3 text-left">Billing</th>
                             <th className="px-4 py-3 text-left">Currency</th>
                             <th className="px-4 py-3 text-left">Since</th>
+                            <th className="px-4 py-3 text-left">Expires On</th>
                             <th className="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -54,8 +58,14 @@ export default function SubscriptionsPage() {
                                         {sub.plan}
                                     </span>
                                 </td>
+                                <td className="px-4 py-3">
+                                    <span className="text-sm capitalize">{sub.billing_interval || '—'}</span>
+                                </td>
                                 <td className="px-4 py-3 text-sm">{sub.currency_code}</td>
                                 <td className="px-4 py-3 text-sm text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</td>
+                                <td className="px-4 py-3 text-sm text-gray-400">
+                                    {sub.subscription_ends_at ? new Date(sub.subscription_ends_at).toLocaleDateString() : '—'}
+                                </td>
                                 <td className="px-4 py-3 text-right">
                                     <button onClick={() => handleCancel(sub.id)} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">Cancel</button>
                                 </td>
