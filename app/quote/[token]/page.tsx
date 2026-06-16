@@ -22,9 +22,9 @@ type QuotesTable = {
 };
 
 type ProfilesTable = {
-    select: (columns: 'company_name, phone, currency_code') => {
+    select: (columns: 'company_name, phone, currency_code, company_logo_url') => {
         eq: (column: 'id', value: string) => {
-            maybeSingle: () => Promise<{ data: { company_name: string; phone: string; currency_code: string } | null; error: QueryError }>;
+            maybeSingle: () => Promise<{ data: { company_name: string; phone: string; currency_code: string; company_logo_url: string | null } | null; error: QueryError }>;
         };
     };
 };
@@ -61,7 +61,7 @@ function parseLineItemsFromJSONB(value: unknown): Array<{
 
 function mapPublicQuoteResponse(
     quote: QuotePublicRow,
-    profile: { company_name: string; phone: string; currency_code: string } | null,
+    profile: { company_name: string; phone: string; currency_code: string; company_logo_url: string | null } | null,
 ): NonNullable<PublicQuoteResponse['quote']> {
     return {
         id: quote.id,
@@ -78,6 +78,7 @@ function mapPublicQuoteResponse(
         client_company: quote.clients?.company ?? null,
         company_name: profile?.company_name ?? null,
         company_phone: profile?.phone ?? null,
+        company_logo_url: profile?.company_logo_url ?? null,
         pdf_mode: quote.pdf_mode,
         currency: quote.currency,
         tax_rate: quote.tax_rate,
@@ -103,7 +104,7 @@ async function getPublicQuote(token: string) {
     }
 
     const profilesClient = supabase.from('profiles') as unknown as ProfilesTable;
-    const { data: profile } = await profilesClient.select('company_name, phone, currency_code').eq('id', quote.user_id).maybeSingle();
+    const { data: profile } = await profilesClient.select('company_name, phone, currency_code, company_logo_url').eq('id', quote.user_id).maybeSingle();
 
     const currencyCode = quote.currency || profile?.currency_code || 'AED';
 

@@ -118,6 +118,14 @@ function NewQuotePageContent() {
         }
     }, [loading, router, session]);
 
+    // Validate restored state on mount (prevents crash on browser back)
+    useEffect(() => {
+        if (draft.quote_data && (!draft.quote_data.line_items || !Array.isArray(draft.quote_data.line_items))) {
+            console.warn('Detected corrupted quote data on mount, resetting...');
+            actions.reset();
+        }
+    }, []);
+
     // Load usage
     useEffect(() => {
         let mounted = true;
@@ -226,14 +234,14 @@ function NewQuotePageContent() {
                 body: JSON.stringify(payload),
             });
 
-            const contentType = res.headers.get("content-type");
             if (!res.ok) {
+                const contentType = res.headers.get("content-type");
+                let errMsg = `Server Error: ${res.status}`;
                 if (contentType && contentType.includes("application/json")) {
-                    const errData = await res.json();
-                    throw new Error(errData.error || "API Error");
-                } else {
-                    throw new Error(`Server Error: ${res.status} ${res.statusText}`);
+                    const errData = await res.json().catch(() => ({}));
+                    errMsg = errData.error || errMsg;
                 }
+                throw new Error(errMsg);
             }
 
             const result = (await res.json().catch(() => null)) as QuoteGenerateResponse | null;
@@ -272,7 +280,7 @@ function NewQuotePageContent() {
             };
 
             actions.generateSuccess(result.quote_data, context);
-        } catch (err: any) {
+        } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             actions.generateFailed(errorMsg);
             setFormError(errorMsg);
@@ -295,14 +303,14 @@ function NewQuotePageContent() {
                 }),
             });
 
-            const contentType = res.headers.get("content-type");
             if (!res.ok) {
+                const contentType = res.headers.get("content-type");
+                let errMsg = `Server Error: ${res.status}`;
                 if (contentType && contentType.includes("application/json")) {
-                    const errData = await res.json();
-                    throw new Error(errData.message || "Couldn't apply that change.");
-                } else {
-                    throw new Error(`Server Error: ${res.status} ${res.statusText}`);
+                    const errData = await res.json().catch(() => ({}));
+                    errMsg = errData.message || errMsg;
                 }
+                throw new Error(errMsg);
             }
 
             const result = (await res.json().catch(() => null)) as QuoteReviseResponse | null;
@@ -314,7 +322,7 @@ function NewQuotePageContent() {
             }
 
             actions.reviseSuccess(result.quote_data);
-        } catch (err: any) {
+        } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             actions.reviseFailed(errorMsg);
         }

@@ -14,9 +14,9 @@ export default async function ProfilePage() {
 
     const { data: profile } = (await supabase
         .from('profiles')
-        .select('full_name, company_name, phone')
+        .select('full_name, company_name, phone, company_logo_url')
         .eq('id', user.id)
-        .maybeSingle()) as { data: { full_name: string; company_name: string; phone: string } | null };
+        .maybeSingle()) as { data: { full_name: string; company_name: string; phone: string; company_logo_url: string | null } | null };
 
     return (
         <main className="min-h-screen bg-slate-950 px-4 py-10">
@@ -39,6 +39,8 @@ export default async function ProfilePage() {
                             phone: profile?.phone ?? '',
                         }}
                         userEmail={user.email ?? ''}
+                        userId={user.id}
+                        currentLogoUrl={profile?.company_logo_url}
                     />
                 </div>
             </div>

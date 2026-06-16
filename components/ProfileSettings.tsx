@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ToastContainer, useToasts } from '@/components/ui/Toast';
+import { LogoUpload } from '@/components/LogoUpload';
 import type { Database, PlanTier, ProfileFormValues } from '@/types';
 
 // ── Plan display helpers ───────────────────────────────────────────────────────
@@ -37,6 +38,8 @@ export interface ProfileSettingsProps {
     userEmail: string;
     plan: PlanTier;
     isSubscribed: boolean;
+    userId: string;
+    currentLogoUrl: string | null;
 }
 
 /**
@@ -44,12 +47,13 @@ export interface ProfileSettingsProps {
  * Sections: Personal | Company | Plan
  * Save logic is identical to ProfileForm — only the UI is restructured.
  */
-export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed }: ProfileSettingsProps) {
+export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, userId, currentLogoUrl }: ProfileSettingsProps) {
     const supabase = createClient();
     const router = useRouter();
     const { toasts, addToast, removeToast } = useToasts();
 
     const [values, setValues] = useState<ProfileFormValues>(initialValues);
+    const [logoUrl, setLogoUrl] = useState(currentLogoUrl);
     const [saving, setSaving] = useState(false);
 
     // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
@@ -170,7 +174,15 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed }
                             Shown on your generated quotes and PDF exports.
                         </p>
                     </CardHeader>
-                    <CardBody>
+                    <CardBody className="flex flex-col gap-4">
+                        <LogoUpload
+                            userId={userId}
+                            currentLogoUrl={logoUrl}
+                            onLogoUpdated={(url) => {
+                                setLogoUrl(url);
+                                router.refresh();
+                            }}
+                        />
                         <Input
                             label="Company name"
                             type="text"

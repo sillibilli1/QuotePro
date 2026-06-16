@@ -1,6 +1,7 @@
 import type { PublicQuoteResponse } from '@/types';
 import { QuoteActionButtons } from './QuoteActionButtons';
 import { getStatusTokens } from '@/lib/ui/status';
+import Image from 'next/image';
 
 type QuoteData = NonNullable<PublicQuoteResponse['quote']>;
 
@@ -51,9 +52,20 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-400">
                             Quotation
                         </p>
-                        <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
-                            {quote.company_name || 'QuotePro'}
-                        </h1>
+                        {quote.company_logo_url ? (
+                            <div className="relative mt-2 h-16 w-40">
+                                <Image
+                                    src={quote.company_logo_url}
+                                    alt={quote.company_name || 'Company logo'}
+                                    fill
+                                    className="object-contain object-left"
+                                />
+                            </div>
+                        ) : (
+                            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+                                {quote.company_name || 'QuotePro'}
+                            </h1>
+                        )}
                         {quote.company_phone && (
                             <p className="mt-1 text-sm text-slate-400">📞 {quote.company_phone}</p>
                         )}
@@ -195,15 +207,19 @@ export function PublicQuoteView({ quote, currencyCode }: PublicQuoteViewProps) {
                     initialStatus={quote.status}
                 />
 
-                {/* ── Powered-by footer (viral loop) ────────────────────────────── */}
-                <div className="py-4 text-center">
+                {/* ── Premium CTA Banner (viral loop) ────────────────────────────── */}
+                <div className="rounded-2xl border border-teal-500/20 bg-gradient-to-br from-slate-800/50 to-slate-900/50 p-8 text-center shadow-xl">
+                    <h3 className="text-xl font-bold text-white sm:text-2xl">
+                        Create professional quotes like this in 60 seconds
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-400">
+                        Join thousands of businesses using QuotePro to win more clients
+                    </p>
                     <a
                         href="/"
-                        className="text-xs text-slate-600 transition hover:text-teal-400 focus:outline-none focus-visible:text-teal-400 motion-reduce:transition-none"
+                        className="mt-6 inline-block rounded-full bg-teal-500 px-8 py-3 font-bold text-slate-950 transition hover:bg-teal-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 motion-reduce:transition-none"
                     >
-                        Powered by{' '}
-                        <span className="font-semibold text-slate-500">QuotePro</span>
-                        {' '}— generate professional quotes in 60 seconds
+                        Try QuotePro for Free
                     </a>
                 </div>
             </div>

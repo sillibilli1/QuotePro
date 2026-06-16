@@ -43,7 +43,9 @@ export function QuotePreview({
     onConfirm,
     onReset,
 }: QuotePreviewProps) {
-    if (!quoteData) return null;
+    // Bulletproof null checks
+    if (!quoteData || !quoteData.line_items || !Array.isArray(quoteData.line_items)) return null;
+    if (!context) return null;
 
     const router = useRouter();
     const [reviseError, setReviseError] = useState<string | null>(null);
@@ -83,6 +85,16 @@ export function QuotePreview({
                     },
                 }),
             });
+
+            if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                let errMsg = `Server Error: ${response.status}`;
+                if (contentType && contentType.includes("application/json")) {
+                    const errData = await response.json().catch(() => ({}));
+                    errMsg = errData.message || errMsg;
+                }
+                throw new Error(errMsg);
+            }
 
             const result = (await response.json().catch(() => null)) as QuoteReviseResponse | null;
 
@@ -127,6 +139,16 @@ export function QuotePreview({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(confirmPayload),
             });
+
+            if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                let errMsg = `Server Error: ${response.status}`;
+                if (contentType && contentType.includes("application/json")) {
+                    const errData = await response.json().catch(() => ({}));
+                    errMsg = errData.error || errMsg;
+                }
+                throw new Error(errMsg);
+            }
 
             const result = (await response.json().catch(() => null)) as QuoteConfirmResponse | null;
 
@@ -184,19 +206,19 @@ export function QuotePreview({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                            {quoteData.line_items.map((item) => (
+                            {quoteData.line_items?.map((item) => (
                                 <tr key={item.item_number} className="align-top">
                                     <td className="py-2 pr-3 text-slate-400">{item.item_number}</td>
                                     <td className="py-2 pr-3 text-slate-200">{item.description || 'No description'}</td>
-                                    <td className="py-2 pr-3 text-slate-200">{item.unit}</td>
+                                    <td className="py-2 pr-3 text-slate-200">{item.unit || '-'}</td>
                                     <td className="py-2 pr-3 font-mono tabular-nums text-slate-200">
-                                        {item.quantity}
+                                        {item.quantity ?? 0}
                                     </td>
                                     <td className="py-2 pr-3 font-mono tabular-nums text-slate-200">
-                                        {formatCurrency(item.unit_rate_aed, currencyCode)}
+                                        {formatCurrency(item.unit_rate_aed ?? 0, currencyCode)}
                                     </td>
                                     <td className="py-2 text-right font-mono tabular-nums text-white">
-                                        {formatCurrency(item.subtotal_aed, currencyCode)}
+                                        {formatCurrency(item.subtotal_aed ?? 0, currencyCode)}
                                     </td>
                                 </tr>
                             ))}
@@ -207,8 +229,8 @@ export function QuotePreview({
                 {/* Totals */}
                 <div className="mt-5 flex flex-col gap-1.5 rounded-xl border border-brand/20 bg-brand/5 p-4 text-sm">
                     {[
-                        { label: 'Subtotal', val: quoteData.subtotal_aed },
-                        { label: getTaxLabel(context.tax_rate), val: quoteData.vat_5_percent_aed },
+                        { label: 'Subtotal', val: quoteData.subtotal_aed ?? 0 },
+                        { label: getTaxLabel(context.tax_rate ?? 5), val: quoteData.vat_5_percent_aed ?? 0 },
                     ].map(({ label, val }) => (
                         <div key={label} className="flex items-center justify-between gap-4">
                             <span className="text-slate-400">{label}</span>
@@ -220,7 +242,7 @@ export function QuotePreview({
                     <div className="flex items-center justify-between gap-4 border-t border-brand/20 pt-2 text-base">
                         <span className="font-semibold text-slate-400">Total</span>
                         <span className="font-mono font-bold tabular-nums text-white">
-                            {formatCurrency(quoteData.total_aed, currencyCode)}
+                            {formatCurrency(quoteData.total_aed ?? 0, currencyCode)}
                         </span>
                     </div>
                 </div>

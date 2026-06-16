@@ -7,17 +7,20 @@ import { Input } from '@/components/ui/Input';
 import { ToastContainer, useToasts } from '@/components/ui/Toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Database, ProfileFormValues } from '@/types';
+import { LogoUpload } from '@/components/LogoUpload';
 
 type ProfileFormProps = {
     initialValues: ProfileFormValues;
     userEmail: string;
+    userId: string;
+    currentLogoUrl?: string | null;
 };
 
 /**
  * ProfileForm — used on the onboarding /profile page (initial account setup).
  * Save logic is unchanged; feedback is now routed through the Toast system.
  */
-export function ProfileForm({ initialValues, userEmail }: ProfileFormProps) {
+export function ProfileForm({ initialValues, userEmail, userId, currentLogoUrl }: ProfileFormProps) {
     const router = useRouter();
     const supabase = createClient();
     const { toasts, addToast, removeToast } = useToasts();
@@ -80,6 +83,11 @@ export function ProfileForm({ initialValues, userEmail }: ProfileFormProps) {
                 onSubmit={(e) => void handleSubmit(e)}
                 aria-label="Complete your profile"
             >
+                <LogoUpload
+                    userId={userId}
+                    currentLogoUrl={currentLogoUrl}
+                    onLogoUpdated={() => { }}
+                />
                 <Input
                     label="Full name"
                     value={values.full_name}

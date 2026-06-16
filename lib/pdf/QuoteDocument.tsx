@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Page, StyleSheet, Text, View, Image } from '@react-pdf/renderer';
 import { ARABIC_LABELS, registerPdfFonts } from '@/lib/pdf/fonts';
 import type { QuoteLineItem } from '@/types';
 
@@ -12,6 +12,7 @@ type QuoteDocumentProps = {
     companyName: string;
     companyAddress: string;
     companyPhone: string;
+    companyLogoUrl?: string | null;
     clientName: string;
     clientCompany: string | null;
     projectTitle: string;
@@ -49,6 +50,13 @@ const styles = StyleSheet.create({
     companyBlock: {
         width: '56%',
         gap: 4,
+        alignItems: 'flex-start',
+    },
+    companyLogo: {
+        maxHeight: 80,
+        maxWidth: 220,
+        objectFit: 'contain',
+        marginBottom: 8,
     },
     companyName: {
         fontSize: 18,
@@ -56,7 +64,20 @@ const styles = StyleSheet.create({
         color: '#0f172a',
     },
     companyMeta: {
-        color: '#475569',
+        fontSize: 10,
+        color: '#4B5563',
+        lineHeight: 1.4,
+    },
+    phoneLabel: {
+        fontSize: 10,
+        color: '#4B5563',
+        marginTop: 8,
+    },
+    projectTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0f172a',
+        marginTop: 16,
         lineHeight: 1.4,
     },
     quotationBlock: {
@@ -211,6 +232,7 @@ export function QuoteDocument({
     companyName,
     companyAddress,
     companyPhone,
+    companyLogoUrl,
     clientName,
     clientCompany,
     projectTitle,
@@ -231,10 +253,14 @@ export function QuoteDocument({
             <Page size="A4" style={styles.page}>
                 <View style={styles.header}>
                     <View style={styles.companyBlock}>
-                        <Text style={styles.companyName}>{companyName}</Text>
+                        {companyLogoUrl ? (
+                            <Image src={companyLogoUrl} style={styles.companyLogo} />
+                        ) : (
+                            <Text style={styles.companyName}>{companyName}</Text>
+                        )}
                         {!isSubscribed && <Text style={styles.companyMeta}>{companyAddress}</Text>}
-                        <Text style={styles.companyMeta}>{companyPhone}</Text>
-                        <Text style={styles.companyMeta}>{projectTitle}</Text>
+                        <Text style={styles.phoneLabel}>Phone: {companyPhone}</Text>
+                        <Text style={styles.projectTitle}>{projectTitle}</Text>
                     </View>
 
                     <View style={styles.quotationBlock}>

@@ -16,7 +16,7 @@ type QuoteRow = Pick<
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
 
-type ProfileRow = Pick<Database['public']['Tables']['profiles']['Row'], 'company_name' | 'phone' | 'currency_code' | 'full_name' | 'is_subscribed'>;
+type ProfileRow = Pick<Database['public']['Tables']['profiles']['Row'], 'company_name' | 'phone' | 'currency_code' | 'full_name' | 'is_subscribed' | 'company_logo_url'>;
 
 function roundCurrency(value: number) {
     return Math.round(value * 100) / 100;
@@ -61,7 +61,7 @@ export async function GET(_: Request, context: { params: { token: string } }) {
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('company_name, phone, currency_code, full_name, is_subscribed')
+            .select('company_name, phone, currency_code, full_name, is_subscribed, company_logo_url')
             .eq('id', quote.user_id)
             .maybeSingle() as { data: ProfileRow | null; error: QueryError };
 
@@ -91,6 +91,7 @@ export async function GET(_: Request, context: { params: { token: string } }) {
                 companyName: profile?.company_name || profile?.full_name || 'Your Company',
                 companyAddress: 'Generated with QuotePro',
                 companyPhone: profile?.phone || '',
+                companyLogoUrl: profile?.company_logo_url || null,
                 isSubscribed: !!profile?.is_subscribed,
                 clientName: quote.clients?.name || 'Client',
                 clientCompany: quote.clients?.company ?? null,

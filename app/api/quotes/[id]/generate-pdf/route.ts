@@ -16,7 +16,7 @@ type QuoteRow = Pick<
     clients: Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'company'> | null;
 };
 
-type ProfileRow = Pick<Database['public']['Tables']['profiles']['Row'], 'company_name' | 'phone' | 'currency_code' | 'full_name' | 'is_subscribed'>;
+type ProfileRow = Pick<Database['public']['Tables']['profiles']['Row'], 'company_name' | 'phone' | 'currency_code' | 'full_name' | 'is_subscribed' | 'company_logo_url'>;
 
 type QuotesSelectTable = {
     select: (columns: string) => {
@@ -105,7 +105,7 @@ export async function GET(_: Request, context: { params: { id: string } }) {
         console.log("👉 [DB FETCH] Retrieved quote object pdf_mode:", quote?.pdf_mode);
 
         const { data: profile, error: profileError } = await profilesTable
-            .select('company_name, phone, currency_code, full_name, is_subscribed')
+            .select('company_name, phone, currency_code, full_name, is_subscribed, company_logo_url')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -143,6 +143,7 @@ export async function GET(_: Request, context: { params: { id: string } }) {
                 companyName: profile?.company_name || profile?.full_name || 'Your Company',
                 companyAddress: 'Generated with QuotePro',
                 companyPhone: profile?.phone || '',
+                companyLogoUrl: profile?.company_logo_url || null,
                 isSubscribed: !!profile?.is_subscribed,
                 clientName: quote.clients?.name || 'Client',
                 clientCompany: quote.clients?.company ?? null,

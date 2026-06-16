@@ -42,6 +42,7 @@ export interface ProfileRecord {
     full_name: string;
     company_name: string;
     phone: string;
+    company_logo_url: string | null;
     is_subscribed: boolean;
     plan: PlanTier | null;
     stripe_customer_id: string | null;
@@ -207,6 +208,7 @@ export interface PublicQuoteResponse {
         client_company: string | null;
         company_name: string | null;
         company_phone: string | null;
+        company_logo_url: string | null;
         pdf_mode: PdfMode;
         currency: SupportedCurrency;
         tax_rate: number;
