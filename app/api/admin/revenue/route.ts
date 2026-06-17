@@ -25,13 +25,15 @@ export async function GET(req: NextRequest) {
         .order('processed_at', { ascending: false });
 
     // Fetch Stripe subscriptions (active paid users)
-    const { data: stripeUsers } = await supabase
+    const { data: stripeUsersData } = await supabase
         .from('profiles')
         .select('id, email, full_name, plan, billing_interval, currency_code, created_at')
         .not('plan', 'is', null)
         .neq('plan', 'free')
         .not('stripe_subscription_id', 'is', null)
         .order('created_at', { ascending: false });
+
+    const stripeUsers: any[] = stripeUsersData || [];
 
     const payments: any[] = [];
 
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Add Stripe payments (simplified: one entry per subscription)
-    if (stripeUsers && Array.isArray(stripeUsers)) {
+    if (stripeUsers.length > 0) {
         stripeUsers.forEach((user: any) => {
             // Calculate amount based on plan and billing interval
             const plans: any = { starter: 49, growth: 149 };
