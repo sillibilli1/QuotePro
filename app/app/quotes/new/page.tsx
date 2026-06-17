@@ -118,10 +118,11 @@ function NewQuotePageContent() {
         }
     }, [loading, router, session]);
 
-    // Validate restored state on mount (prevents crash on browser back)
+    // Reset state on mount if navigating back to page (prevents blank page)
     useEffect(() => {
-        if (draft.quote_data && (!draft.quote_data.line_items || !Array.isArray(draft.quote_data.line_items))) {
-            console.warn('Detected corrupted quote data on mount, resetting...');
+        if (draft.state === 'saving' || draft.state === 'preview') {
+            actions.reset();
+        } else if (draft.quote_data && (!draft.quote_data.line_items || !Array.isArray(draft.quote_data.line_items))) {
             actions.reset();
         }
     }, []);
