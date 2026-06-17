@@ -1,12 +1,12 @@
 import { requireAdmin } from '@/lib/admin/auth';
 import StatCard from '@/components/admin/StatCard';
 import { Users, CreditCard, FileText, TrendingUp } from 'lucide-react';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
 
 async function getStats() {
     const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/stats`, {
         cache: 'no-store',
-        headers: headers(),
+        headers: { Cookie: cookies().toString() },
     });
     return res.json();
 }
