@@ -140,16 +140,17 @@ async function trackView(token: string) {
 
         const result = (await response.json().catch(() => null)) as { success?: boolean; quote_id?: string; email_sent?: boolean } | null;
 
-        if (response.ok && result?.success && result.quote_id && result.email_sent) {
-            await fetch(`${getBaseUrl()}/api/email/quote-viewed`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ quoteId: result.quote_id }),
-                cache: 'no-store',
-            });
-        }
+        // Temporarily disabled to save email limits
+        // if (response.ok && result?.success && result.quote_id && result.email_sent) {
+        //     await fetch(`${getBaseUrl()}/api/email/quote-viewed`, {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json',
+        //         },
+        //         body: JSON.stringify({ quoteId: result.quote_id }),
+        //         cache: 'no-store',
+        //     });
+        // }
     } catch {
         // Tracking should not block rendering.
     }

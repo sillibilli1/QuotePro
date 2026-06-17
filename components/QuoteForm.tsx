@@ -78,8 +78,8 @@ export function QuoteForm() {
             client_company: '',
             approximate_value_aed: '',
             pdf_mode: 'bilingual',
-            currency: detectCurrencyFromTimezone() as SupportedCurrency,
-            tax_rate: CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5,
+            currency: 'AED' as SupportedCurrency,
+            tax_rate: 5,
         },
     });
 
@@ -107,6 +107,10 @@ export function QuoteForm() {
                 if (isMounted) {
                     setUsage(result);
                     setIsUpgradeModalOpen(result.is_limit_reached);
+                    // Set currency from user profile
+                    const userCurrency = (result.currency_code || 'AED') as SupportedCurrency;
+                    setValue('currency', userCurrency);
+                    setValue('tax_rate', CURRENCIES[userCurrency]?.tax ?? 5);
                 }
             } catch {
                 if (isMounted) {
@@ -124,7 +128,7 @@ export function QuoteForm() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [setValue]);
 
     useEffect(() => {
         fetch('/api/clients')

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, CreditCard, FileText, Gift, Activity, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, FileText, Gift, Activity, Zap, DollarSign } from 'lucide-react';
 
 const navItems = [
     { href: '/hq-admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/hq-admin/users', label: 'Users', icon: Users },
+    { href: '/hq-admin/revenue', label: 'Revenue', icon: DollarSign },
     { href: '/hq-admin/payments', label: 'Payments', icon: CreditCard },
     { href: '/hq-admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { href: '/hq-admin/quotes', label: 'Quotes', icon: FileText },

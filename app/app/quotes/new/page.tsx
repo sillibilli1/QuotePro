@@ -96,8 +96,8 @@ function NewQuotePageContent() {
             client_company: '',
             approximate_value_aed: '',
             pdf_mode: 'bilingual',
-            currency: detectCurrencyFromTimezone() as SupportedCurrency,
-            tax_rate: CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5,
+            currency: 'AED' as SupportedCurrency,
+            tax_rate: 5,
         },
     });
 
@@ -140,6 +140,10 @@ function NewQuotePageContent() {
                 if (mounted) {
                     setUsage(result);
                     setIsUpgradeModalOpen(result.is_limit_reached);
+                    // Set currency from user profile
+                    const userCurrency = (result.currency_code || 'AED') as SupportedCurrency;
+                    setValue('currency', userCurrency);
+                    setValue('tax_rate', CURRENCIES[userCurrency]?.tax ?? 5);
                 }
             } catch {
                 if (mounted) setFormError('Unable to load quote usage. Please refresh the page.');
@@ -152,7 +156,7 @@ function NewQuotePageContent() {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [setValue]);
 
     // Load clients
     useEffect(() => {
@@ -348,8 +352,9 @@ function NewQuotePageContent() {
         setValue('client_company', '');
         setValue('approximate_value_aed', '');
         setValue('pdf_mode', 'bilingual');
-        setValue('currency', detectCurrencyFromTimezone() as SupportedCurrency);
-        setValue('tax_rate', CURRENCIES[detectCurrencyFromTimezone()]?.tax ?? 5);
+        const userCurrency = (usage?.currency_code || 'AED') as SupportedCurrency;
+        setValue('currency', userCurrency);
+        setValue('tax_rate', CURRENCIES[userCurrency]?.tax ?? 5);
 
         // Clear sessionStorage explicitly
         try {
