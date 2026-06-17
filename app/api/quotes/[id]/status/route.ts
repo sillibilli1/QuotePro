@@ -12,8 +12,8 @@ type QuotesTable = {
     };
 };
 
-function isAllowedStatus(value: unknown): value is Extract<QuoteStatus, 'won' | 'lost'> {
-    return value === 'won' || value === 'lost';
+function isAllowedStatus(value: unknown): value is Extract<QuoteStatus, 'won' | 'lost' | 'accepted' | 'declined'> {
+    return value === 'won' || value === 'lost' || value === 'accepted' || value === 'declined';
 }
 
 export async function PATCH(request: Request, context: { params: { id: string } }) {
@@ -38,7 +38,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
     const status = (body as { status?: unknown })?.status;
 
     if (!isAllowedStatus(status)) {
-        return NextResponse.json({ success: false, error: 'Status must be either won or lost.' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'Status must be won, lost, accepted, or declined.' }, { status: 400 });
     }
 
     const quotesTable = supabase.from('quotes') as unknown as QuotesTable;

@@ -107,6 +107,10 @@ function buildQuoteResponse(row: QuoteWithClientRow, fallbackCurrencyCode: strin
         currency_code: row.currency ?? fallbackCurrencyCode,
         tax_rate: row.tax_rate ?? 5,
         line_items: lineItems,
+        is_invoice: (row as any).is_invoice ?? false,
+        invoice_number: (row as any).invoice_number ?? null,
+        invoice_date: (row as any).invoice_date ?? null,
+        due_date: (row as any).due_date ?? null,
     };
 }
 
@@ -127,7 +131,7 @@ export async function GET(_: Request, context: { params: { id: string } }) {
 
     const { data, error } = await quotesTable
         .select(
-            'id, user_id, client_id, quote_number, status, project_title, pdf_mode, line_items, subtotal_aed, vat_5_aed, total_aed, created_at, share_token, pdf_url, viewed_at, tax_rate, currency, clients(name, company)',
+            'id, user_id, client_id, quote_number, status, project_title, pdf_mode, line_items, subtotal_aed, vat_5_aed, total_aed, created_at, share_token, pdf_url, viewed_at, tax_rate, currency, is_invoice, invoice_number, invoice_date, due_date, clients(name, company)',
         )
         .eq('id', quoteId)
         .eq('user_id', user.id)

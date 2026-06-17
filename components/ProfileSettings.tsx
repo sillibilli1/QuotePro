@@ -1,17 +1,18 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Crown } from 'lucide-react';
+import { ExternalLink, Crown, Info } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ToastContainer, useToasts } from '@/components/ui/Toast';
 import { LogoUpload } from '@/components/LogoUpload';
-import type { Database, PlanTier, ProfileFormValues } from '@/types';
+import type { Database, PlanTier, ProfileFormValues, BankDetails } from '@/types';
 
 // ── Plan display helpers ───────────────────────────────────────────────────────
 const PLAN_LABEL: Record<PlanTier, string> = {
@@ -53,13 +54,44 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
     const { toasts, addToast, removeToast } = useToasts();
 
     const [values, setValues] = useState<ProfileFormValues>(initialValues);
+    const [bankDetails, setBankDetails] = useState('');
+    const [trn, setTrn] = useState('');
+    const [bankDetailsStructured, setBankDetailsStructured] = useState<BankDetails>({
+        bank_name: '',
+        account_name: '',
+        account_number: '',
+        iban: '',
+        swift_code: '',
+        branch: '',
+        currency: 'AED',
+    });
     const [logoUrl, setLogoUrl] = useState(currentLogoUrl);
     const [saving, setSaving] = useState(false);
+    const [loadingBankDetails, setLoadingBankDetails] = useState(true);
 
     // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
     const normalizedPlan: PlanTier = isSubscribed && ['starter', 'growth'].includes(plan.toLowerCase())
         ? (plan.toLowerCase() as PlanTier)
         : 'free';
+
+    // Load bank details and TRN on mount
+    useEffect(() => {
+        (async () => {
+            const { data } = await supabase
+                .from('profiles')
+                .select('bank_details, bank_details_structured, trn')
+                .eq('id', userId)
+                .single();
+            if (data) {
+                setBankDetails((data as any).bank_details ?? '');
+                setTrn((data as any).trn ?? '');
+                if ((data as any).bank_details_structured) {
+                    setBankDetailsStructured((data as any).bank_details_structured as BankDetails);
+                }
+            }
+            setLoadingBankDetails(false);
+        })();
+    }, [supabase, userId]);
 
     // ── Track dirty state so we only show Save when something changed ─────────
     const isDirty =
@@ -83,22 +115,26 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
             return;
         }
 
-        const profilePayload: Database['public']['Tables']['profiles']['Insert'] = {
+        // Build legacy bank_details text from structured data
+        const legacyBankDetails = bankDetailsStructured.bank_name
+            ? `Bank Name: ${bankDetailsStructured.bank_name}\nAccount Name: ${bankDetailsStructured.account_name}\nAccount Number: ${bankDetailsStructured.account_number}${bankDetailsStructured.iban ? `\nIBAN: ${bankDetailsStructured.iban}` : ''}${bankDetailsStructured.swift_code ? `\nSwift Code: ${bankDetailsStructured.swift_code}` : ''}${bankDetailsStructured.branch ? `\nBranch: ${bankDetailsStructured.branch}` : ''}\nCurrency: ${bankDetailsStructured.currency}`
+            : null;
+
+        const profilePayload: any = {
             id: user.id,
             email: user.email ?? userEmail,
             full_name: values.full_name,
             company_name: values.company_name,
             phone: values.phone,
+            bank_details: legacyBankDetails,
+            bank_details_structured: bankDetailsStructured.bank_name ? bankDetailsStructured : null,
+            trn: trn || null,
             updated_at: new Date().toISOString(),
         };
 
-        const profileTable = supabase.from('profiles') as unknown as {
-            upsert: (
-                values: Database['public']['Tables']['profiles']['Insert'][],
-            ) => Promise<{ error: { message: string } | null }>;
-        };
-
-        const { error: upsertError } = await profileTable.upsert([profilePayload]);
+        const { error: upsertError } = await supabase
+            .from('profiles')
+            .upsert([profilePayload]);
 
         setSaving(false);
 
@@ -195,6 +231,132 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
                             required
                             className="py-3 px-4 h-auto"
                         />
+                        <div>
+                            <Input
+                                label="Tax Registration Number (TRN)"
+                                type="text"
+                                value={trn}
+                                onChange={(e) => {
+                                    const value = e.target.value.replace(/\D/g, '').slice(0, 15);
+                                    setTrn(value);
+                                }}
+                                placeholder="123456789012345"
+                                maxLength={15}
+                                hint="Required for UAE tax invoices. 15-digit number from your TRN certificate."
+                                className="py-3 px-4 h-auto font-mono"
+                            />
+                        </div>
+                    </CardBody>
+                </Card>
+
+                {/* ── Bank Details section ───────────────────────────────────── */}
+                <Card>
+                    <CardHeader>
+                        <h2 className="type-h3 text-text-primary">Bank Details</h2>
+                        <p className="text-xs text-text-secondary">
+                            Bank information displayed on invoices for payment processing.
+                        </p>
+                    </CardHeader>
+                    <CardBody className="flex flex-col gap-4">
+                        <Input
+                            label="Bank Name"
+                            type="text"
+                            value={bankDetailsStructured.bank_name}
+                            onChange={(e) =>
+                                setBankDetailsStructured((v) => ({ ...v, bank_name: e.target.value }))
+                            }
+                            placeholder="Emirates NBD"
+                            required={!!bankDetailsStructured.account_number}
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto"
+                        />
+                        <Input
+                            label="Account Name"
+                            type="text"
+                            value={bankDetailsStructured.account_name}
+                            onChange={(e) =>
+                                setBankDetailsStructured((v) => ({ ...v, account_name: e.target.value }))
+                            }
+                            placeholder="As shown on bank statement"
+                            required={!!bankDetailsStructured.account_number}
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto"
+                        />
+                        <Input
+                            label="Account Number"
+                            type="text"
+                            value={bankDetailsStructured.account_number}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 25);
+                                setBankDetailsStructured((v) => ({ ...v, account_number: value }));
+                            }}
+                            placeholder="1234567890123456"
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto font-mono"
+                        />
+                        <Input
+                            label="IBAN"
+                            type="text"
+                            value={bankDetailsStructured.iban || ''}
+                            onChange={(e) => {
+                                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 34);
+                                setBankDetailsStructured((v) => ({ ...v, iban: value }));
+                            }}
+                            placeholder="AE070331234567890123456"
+                            hint="Optional. International Bank Account Number for wire transfers."
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto font-mono"
+                        />
+                        <Input
+                            label="Swift Code"
+                            type="text"
+                            value={bankDetailsStructured.swift_code || ''}
+                            onChange={(e) => {
+                                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+                                setBankDetailsStructured((v) => ({ ...v, swift_code: value }));
+                            }}
+                            placeholder="EBILAEAD"
+                            hint="Optional. For international payments (8 or 11 characters)."
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto font-mono"
+                        />
+                        <Input
+                            label="Branch"
+                            type="text"
+                            value={bankDetailsStructured.branch || ''}
+                            onChange={(e) =>
+                                setBankDetailsStructured((v) => ({ ...v, branch: e.target.value }))
+                            }
+                            placeholder="Dubai Mall Branch"
+                            hint="Optional."
+                            disabled={loadingBankDetails}
+                            className="py-3 px-4 h-auto"
+                        />
+                        <div>
+                            <label className="block text-sm font-medium text-text-primary mb-2">
+                                Currency
+                            </label>
+                            <select
+                                value={bankDetailsStructured.currency}
+                                onChange={(e) =>
+                                    setBankDetailsStructured((v) => ({ ...v, currency: e.target.value }))
+                                }
+                                disabled={loadingBankDetails}
+                                className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-text-primary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            >
+                                <option value="AED">AED (UAE Dirham)</option>
+                                <option value="USD">USD (US Dollar)</option>
+                                <option value="EUR">EUR (Euro)</option>
+                                <option value="GBP">GBP (British Pound)</option>
+                                <option value="SAR">SAR (Saudi Riyal)</option>
+                            </select>
+                        </div>
+                        <div className="flex items-start gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                            <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-slate-300">
+                                These details will appear on all invoices you generate.
+                            </p>
+                        </div>
                     </CardBody>
                 </Card>
 

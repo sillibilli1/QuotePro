@@ -36,6 +36,16 @@ export type QuoteStatus =
 
 export type PlanTier = 'free' | 'starter' | 'growth';
 
+export interface BankDetails {
+    bank_name: string;
+    account_name: string;
+    account_number: string;
+    iban?: string | null;
+    swift_code?: string | null;
+    branch?: string | null;
+    currency: string;
+}
+
 export interface ProfileRecord {
     id: string;
     email: string;
@@ -43,6 +53,9 @@ export interface ProfileRecord {
     company_name: string;
     phone: string;
     company_logo_url: string | null;
+    bank_details: string | null;
+    bank_details_structured?: BankDetails | null;
+    trn?: string | null;
     is_subscribed: boolean;
     plan: PlanTier | null;
     stripe_customer_id: string | null;
@@ -60,6 +73,7 @@ export interface ClientRecord {
     company: string | null;
     email: string | null;
     phone: string | null;
+    trn?: string | null;
     created_at: string;
 }
 
@@ -362,6 +376,10 @@ export interface QuoteRecord {
     share_token: string | null;
     pdf_url: string | null;
     viewed_at: string | null;
+    is_invoice?: boolean;
+    invoice_number?: string | null;
+    invoice_date?: string | null;
+    due_date?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -400,6 +418,7 @@ export type Database = {
                     full_name?: string;
                     company_name?: string;
                     phone?: string;
+                    bank_details?: string | null;
                     is_subscribed?: boolean;
                     plan?: PlanTier | null;
                     stripe_customer_id?: string | null;
@@ -415,6 +434,7 @@ export type Database = {
                     full_name?: string;
                     company_name?: string;
                     phone?: string;
+                    bank_details?: string | null;
                     is_subscribed?: boolean;
                     plan?: PlanTier | null;
                     stripe_customer_id?: string | null;

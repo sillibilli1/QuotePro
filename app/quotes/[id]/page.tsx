@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Plus, Save, FileDown, Check, Share2, MessageCircle, Copy } from 'lucide-react';
+import { Plus, Save, FileDown, Check, Share2, MessageCircle, Copy, FileText, Info } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/Button';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -35,6 +35,10 @@ type QuoteDetailPayload = {
         currency_code?: string | null;
         tax_rate?: number;
         share_token?: string | null;
+        is_invoice?: boolean;
+        invoice_number?: string | null;
+        invoice_date?: string | null;
+        due_date?: string | null;
     };
     error?: string;
 };
@@ -157,6 +161,9 @@ function QuoteDetailPageContent() {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [pdfSuccess, setPdfSuccess] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     useEffect(() => {
         if (!loading && !session) router.replace('/');
@@ -242,6 +249,13 @@ function QuoteDetailPageContent() {
     }
 
     async function handleSave() {
+        // Prevent editing invoices
+        if (quoteData?.is_invoice) {
+            setSaveState('error');
+            setSaveMessage('Cannot edit a generated invoice.');
+            return;
+        }
+
         setSaveState('saving');
         setSaveMessage(null);
         try {
@@ -291,6 +305,60 @@ function QuoteDetailPageContent() {
             setSaveMessage('Unable to generate PDF.');
         } finally {
             setIsGeneratingPdf(false);
+        }
+    }
+
+    async function handleGenerateInvoice() {
+        setShowInvoiceModal(false);
+        setIsGeneratingInvoice(true);
+        setSaveMessage(null);
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}/generate-invoice`, { method: 'POST' });
+            const result = await res.json();
+
+            if (!res.ok || !result.success) {
+                setSaveState('error');
+                setSaveMessage(result.error || 'Unable to generate invoice.');
+                setIsGeneratingInvoice(false);
+                return;
+            }
+
+            // Update local state with invoice data
+            setQuoteData(prev => prev ? {
+                ...prev,
+                is_invoice: true,
+                invoice_number: result.invoice_number,
+                invoice_date: result.invoice_date,
+                due_date: result.due_date
+            } : prev);
+
+            setSaveState('saved');
+            setSaveMessage('Invoice generated successfully.');
+        } catch {
+            setSaveState('error');
+            setSaveMessage('Unable to generate invoice.');
+        } finally {
+            setIsGeneratingInvoice(false);
+        }
+    }
+
+    async function handleDownloadInvoice() {
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}/generate-invoice`);
+            if (!res.ok) throw new Error('Failed to generate PDF');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${quoteData?.invoice_number || 'Invoice'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            setSaveState('error');
+            setSaveMessage('Unable to download invoice.');
         }
     }
 
@@ -393,7 +461,33 @@ function QuoteDetailPageContent() {
         );
     }
 
-    const isBusy = saveState === 'saving' || isGeneratingPdf;
+    async function handleManualStatusUpdate(newStatus: 'accepted' | 'declined') {
+        setIsUpdatingStatus(true);
+        setSaveMessage(null);
+        try {
+            const res = await fetch(`/api/quotes/${quoteId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            const result = await res.json();
+            if (!res.ok || !result?.success) {
+                setSaveState('error');
+                setSaveMessage(result?.error || 'Unable to update status.');
+                return;
+            }
+            setQuoteData(prev => prev ? { ...prev, status: newStatus } : prev);
+            setSaveState('saved');
+            setSaveMessage(`Quote marked as ${newStatus} successfully.`);
+        } catch {
+            setSaveState('error');
+            setSaveMessage('Unable to update status.');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    }
+
+    const isBusy = saveState === 'saving' || isGeneratingPdf || isUpdatingStatus;
 
     return (
         <>
@@ -497,7 +591,129 @@ function QuoteDetailPageContent() {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Manual Status Override */}
+                        {(quoteData.status === 'sent' || quoteData.status === 'draft') && (
+                            <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
+                                    Manual Status Override
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => void handleManualStatusUpdate('accepted')}
+                                        loading={isUpdatingStatus}
+                                        disabled={isBusy}
+                                        className="border-emerald-600/30 bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600/20"
+                                    >
+                                        <Check className="mr-1.5 h-3.5 w-3.5" />
+                                        Mark as Accepted
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => void handleManualStatusUpdate('declined')}
+                                        loading={isUpdatingStatus}
+                                        disabled={isBusy}
+                                        className="border-rose-600/30 bg-rose-600/10 text-rose-400 hover:bg-rose-600/20"
+                                    >
+                                        ❌ Mark as Declined
+                                    </Button>
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Use this if the client approved via WhatsApp or phone call
+                                </p>
+                            </div>
+                        )}
                     </Card>
+
+                    {/* ── Convert to Invoice Card ───────────────────────────────────── */}
+                    {quoteData.status === 'accepted' && !quoteData.is_invoice && (
+                        <Card className="bg-gradient-to-r from-teal-500/10 to-emerald-500/10 border-2 border-teal-500/30 p-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-teal-500/20 text-teal-300 border border-teal-500/30 mb-3">
+                                        <Check className="h-3 w-3" />
+                                        Quote Accepted
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-white mb-2">
+                                        Ready to convert this quote to an invoice?
+                                    </h3>
+                                    <div className="flex items-start gap-2 text-sm text-slate-300 mb-4">
+                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 mt-0.5 flex-shrink-0">
+                                            <Info className="h-3 w-3 text-blue-400" />
+                                        </div>
+                                        <p>Invoice will include your bank details and TRN</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        <Button
+                                            variant="primary"
+                                            size="md"
+                                            onClick={() => setShowInvoiceModal(true)}
+                                            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold shadow-lg"
+                                        >
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Convert to Tax Invoice
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="md"
+                                            onClick={() => void handleGeneratePdf()}
+                                            loading={isGeneratingPdf}
+                                            disabled={isBusy}
+                                            className="border-slate-700 bg-slate-800/50 text-slate-200 hover:bg-slate-700"
+                                        >
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Download Quote
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* ── Invoice Generated Card ────────────────────────────────────── */}
+                    {quoteData.is_invoice && quoteData.invoice_number && (
+                        <Card className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-2 border-emerald-500/30 p-6">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-3">
+                                        <FileText className="h-3 w-3" />
+                                        Invoice Generated
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-white mb-2">
+                                        {quoteData.invoice_number}
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                        <div>
+                                            <span className="text-slate-400">Generated:</span>{' '}
+                                            <span className="text-slate-200">
+                                                {quoteData.invoice_date ? new Date(quoteData.invoice_date).toLocaleDateString() : 'N/A'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-400">Due Date:</span>{' '}
+                                            <span className="text-slate-200">
+                                                {quoteData.due_date ? new Date(quoteData.due_date).toLocaleDateString() : 'N/A'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                        <Button
+                                            variant="primary"
+                                            size="md"
+                                            onClick={() => void handleDownloadInvoice()}
+                                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold"
+                                        >
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Download Invoice
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    )}
 
                     {/* ── Line items ────────────────────────────────────────────────── */}
                     <Card className="p-6 md:p-8">
@@ -630,28 +846,45 @@ function QuoteDetailPageContent() {
 
             {/* ── Sticky action bar ────────────────────────────────────────────── */}
             <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-end gap-3 border-t border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur-sm md:px-8">
-                <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={() => void handleSave()}
-                    loading={saveState === 'saving'}
-                    disabled={!hasChanges || isBusy}
-                    className="border-slate-700 bg-transparent text-slate-200 hover:border-slate-500 hover:bg-slate-900"
-                >
-                    <Save className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                    Save
-                </Button>
-                <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => void handleGeneratePdf()}
-                    loading={isGeneratingPdf}
-                    disabled={isBusy}
-                    className="bg-teal-600 hover:bg-teal-500 focus:ring-teal-400"
-                >
-                    <FileDown className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                    Generate PDF
-                </Button>
+                {!quoteData?.is_invoice && (
+                    <>
+                        <Button
+                            variant="secondary"
+                            size="md"
+                            onClick={() => void handleSave()}
+                            loading={saveState === 'saving'}
+                            disabled={!hasChanges || isBusy || isGeneratingInvoice}
+                            className="border-slate-700 bg-transparent text-slate-200 hover:border-slate-500 hover:bg-slate-900"
+                        >
+                            <Save className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                            Save
+                        </Button>
+                        {quoteData?.status === 'accepted' && (
+                            <Button
+                                variant="primary"
+                                size="md"
+                                onClick={() => void handleGenerateInvoice()}
+                                loading={isGeneratingInvoice}
+                                disabled={isBusy || isGeneratingInvoice}
+                                className="bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-400"
+                            >
+                                <FileText className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                                Convert to Invoice
+                            </Button>
+                        )}
+                        <Button
+                            variant="primary"
+                            size="md"
+                            onClick={() => void handleGeneratePdf()}
+                            loading={isGeneratingPdf}
+                            disabled={isBusy || isGeneratingInvoice}
+                            className="bg-teal-600 hover:bg-teal-500 focus:ring-teal-400"
+                        >
+                            <FileDown className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                            Generate PDF
+                        </Button>
+                    </>
+                )}
                 {pdfSuccess && (
                     <button
                         type="button"
@@ -663,6 +896,77 @@ function QuoteDetailPageContent() {
                     </button>
                 )}
             </div>
+
+            {/* ── Invoice Confirmation Modal ───────────────────────────────────── */}
+            {showInvoiceModal && (
+                <div
+                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setShowInvoiceModal(false)}
+                >
+                    <motion.div
+                        initial={reduceMotion ? {} : { opacity: 0, scale: 0.95 }}
+                        animate={reduceMotion ? {} : { opacity: 1, scale: 1 }}
+                        exit={reduceMotion ? {} : { opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-[#121620] rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-800"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold text-white mb-4">Convert to Invoice</h2>
+                        <div className="space-y-4 mb-6">
+                            <p className="text-slate-300 text-sm">
+                                This will create a tax invoice from this quote:
+                            </p>
+                            <div className="bg-slate-900/60 rounded-lg p-4 space-y-2 text-sm border border-slate-800">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Invoice Number:</span>
+                                    <span className="text-white font-mono">Will be auto-generated</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Invoice Date:</span>
+                                    <span className="text-white">{new Date().toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Due Date:</span>
+                                    <span className="text-white">
+                                        {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()} (+30 days)
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                {[
+                                    'Your TRN will be included',
+                                    'Bank details will be added',
+                                    'Original quote will remain unchanged',
+                                ].map((item, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-sm text-slate-300">
+                                        <Check className="h-4 w-4 text-teal-400 flex-shrink-0" />
+                                        <span>{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <Button
+                                variant="secondary"
+                                size="md"
+                                onClick={() => setShowInvoiceModal(false)}
+                                className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="md"
+                                onClick={() => void handleGenerateInvoice()}
+                                loading={isGeneratingInvoice}
+                                className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold"
+                            >
+                                Confirm & Generate
+                            </Button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </>
     );
 }

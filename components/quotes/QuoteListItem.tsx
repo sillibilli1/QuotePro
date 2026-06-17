@@ -12,7 +12,7 @@ interface QuoteListItemProps {
     quote: DashboardQuoteRecord;
     currencyCode: string;
     isUpdating: boolean;
-    onStatusUpdate: (quoteId: string, status: 'won' | 'lost') => void;
+    onStatusUpdate: (quoteId: string, status: 'won' | 'lost' | 'accepted' | 'declined') => void;
 }
 
 function formatMono(value: number, currencyCode: string) {
@@ -51,14 +51,17 @@ export function QuoteListItem({
     const [justActioned, setJustActioned] = useState<'won' | 'lost' | null>(null);
 
     const handleAction = useCallback(
-        (status: 'won' | 'lost') => {
-            setJustActioned(status);
+        (status: 'won' | 'lost' | 'accepted' | 'declined') => {
+            if (status === 'won' || status === 'lost') {
+                setJustActioned(status);
+            }
             onStatusUpdate(quote.id, status);
         },
         [onStatusUpdate, quote.id],
     );
 
     const canAction = quote.status !== 'won' && quote.status !== 'lost';
+    const canManualOverride = quote.status === 'sent' || quote.status === 'draft';
 
     return (
         <article className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-slate-800/30 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -134,6 +137,30 @@ export function QuoteListItem({
                                         animate={reduceMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
                                         transition={{ duration: 0.15, ease: 'easeOut' }}
                                     >
+                                        {canManualOverride && (
+                                            <>
+                                                <DropdownMenu.Item
+                                                    onSelect={() => handleAction('accepted')}
+                                                    className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-300 outline-none hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                                                >
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="h-1.5 w-1.5 rounded-full bg-emerald-400"
+                                                    />
+                                                    ✅ Mark as Accepted
+                                                </DropdownMenu.Item>
+                                                <DropdownMenu.Item
+                                                    onSelect={() => handleAction('declined')}
+                                                    className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-300 outline-none hover:bg-rose-500/10 focus:bg-rose-500/10"
+                                                >
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="h-1.5 w-1.5 rounded-full bg-rose-400"
+                                                    />
+                                                    ❌ Mark as Declined
+                                                </DropdownMenu.Item>
+                                            </>
+                                        )}
                                         <DropdownMenu.Item
                                             onSelect={() => handleAction('won')}
                                             className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-300 outline-none hover:bg-emerald-500/10 focus:bg-emerald-500/10"

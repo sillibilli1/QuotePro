@@ -1,18 +1,29 @@
 import React from 'react';
 import { Document, Page, StyleSheet, Text, View, Image } from '@react-pdf/renderer';
-import { ARABIC_LABELS, registerPdfFonts } from '@/lib/pdf/fonts';
+import { registerPdfFonts, ARABIC_LABELS } from '@/lib/pdf/fonts';
 import type { QuoteLineItem } from '@/types';
 
 registerPdfFonts();
 
-type QuoteDocumentProps = {
-    quoteNumber: string;
+type BankDetails = {
+    bank_name: string;
+    account_name: string;
+    account_number: string;
+    iban?: string | null;
+    swift_code?: string | null;
+    branch?: string | null;
+    currency: string;
+};
+
+type InvoiceDocumentProps = {
+    invoiceNumber: string;
     createdAt: string;
-    validUntil: string;
+    dueDate: string;
     companyName: string;
     companyAddress: string;
     companyPhone: string;
     companyLogoUrl?: string | null;
+    companyTrn?: string | null;
     clientName: string;
     clientCompany: string | null;
     projectTitle: string;
@@ -21,10 +32,10 @@ type QuoteDocumentProps = {
     subtotal: number;
     vat: number;
     total: number;
-    estimatedDuration: string;
     currencyCode: string;
     taxRate: number;
     isSubscribed: boolean;
+    bankDetails: BankDetails | null;
 };
 
 function formatCurrency(value: number, currencyCode: string) {
@@ -73,6 +84,26 @@ const styles = StyleSheet.create({
         color: '#4B5563',
         marginTop: 8,
     },
+    trnRow: {
+        flexDirection: 'row',
+        marginTop: 8,
+        padding: 6,
+        backgroundColor: '#f0fdf4',
+        borderRadius: 4,
+        borderLeftWidth: 3,
+        borderLeftColor: '#10b981',
+    },
+    trnLabel: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#065f46',
+        marginRight: 8,
+    },
+    trnValue: {
+        fontSize: 10,
+        color: '#064e3b',
+        fontFamily: 'Courier',
+    },
     projectTitle: {
         fontSize: 18,
         fontWeight: 'bold',
@@ -80,28 +111,59 @@ const styles = StyleSheet.create({
         marginTop: 16,
         lineHeight: 1.4,
     },
-    quotationBlock: {
+    invoiceBlock: {
         width: '40%',
         alignItems: 'flex-end',
         gap: 4,
     },
-    quotationTitle: {
-        fontSize: 22,
+    headerBanner: {
+        backgroundColor: '#065f46',
+        padding: 16,
+        marginBottom: 20,
+        borderRadius: 8,
+    },
+    taxInvoiceLabel: {
+        fontSize: 28,
         fontWeight: 'bold',
-        color: '#0f766e',
+        color: '#ffffff',
+        textAlign: 'center',
+        letterSpacing: 2,
     },
-    arabicTitle: {
+    taxInvoiceLabelAr: {
+        fontSize: 20,
+        color: '#ffffff',
+        textAlign: 'center',
+        marginTop: 4,
         fontFamily: 'Cairo',
-        fontSize: 13,
-        color: '#334155',
     },
-    subHeader: {
+    invoiceDetailsBox: {
+        backgroundColor: '#f9fafb',
+        padding: 12,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        marginBottom: 20,
+    },
+    detailRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
-        padding: 12,
-        backgroundColor: '#f8fafc',
-        borderRadius: 8,
+        marginBottom: 6,
+    },
+    detailLabel: {
+        fontSize: 10,
+        color: '#6b7280',
+        fontWeight: 'bold',
+    },
+    detailValue: {
+        fontSize: 10,
+        color: '#111827',
+        fontFamily: 'Courier',
+    },
+    detailValueHighlight: {
+        fontSize: 10,
+        color: '#dc2626',
+        fontWeight: 'bold',
+        fontFamily: 'Courier',
     },
     subHeaderItem: {
         width: '32%',
@@ -206,16 +268,84 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 12,
     },
-    termsBox: {
-        borderTopWidth: 1,
-        borderTopColor: '#cbd5e1',
-        paddingTop: 12,
-        gap: 6,
+    paymentSection: {
+        marginTop: 40,
+        padding: 20,
+        backgroundColor: '#f0fdf4',
+        borderTopWidth: 3,
+        borderTopColor: '#10b981',
+        borderRadius: 8,
     },
-    termRow: {
+    paymentHeader: {
+        marginBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#10b981',
+        paddingBottom: 8,
+    },
+    paymentTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#065f46',
+        letterSpacing: 1,
+    },
+    bankDetailsGrid: {
+        marginBottom: 20,
+    },
+    bankDetailRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
+        marginBottom: 8,
+        paddingVertical: 4,
+    },
+    bankLabel: {
+        fontSize: 10,
+        color: '#064e3b',
+        fontWeight: 'bold',
+        width: 120,
+        paddingRight: 8,
+    },
+    bankValue: {
+        fontSize: 10,
+        color: '#1f2937',
+        flex: 1,
+    },
+    bankValueMono: {
+        fontSize: 10,
+        color: '#1f2937',
+        fontFamily: 'Courier',
+        flex: 1,
+        letterSpacing: 0.5,
+    },
+    paymentInstructions: {
+        marginTop: 16,
+        padding: 12,
+        backgroundColor: '#ffffff',
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#d1fae5',
+    },
+    instructionsTitle: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#065f46',
+        marginBottom: 8,
+    },
+    instructionsText: {
+        fontSize: 9,
+        color: '#374151',
+        marginBottom: 4,
+        lineHeight: 1.4,
+    },
+    footer: {
+        marginTop: 30,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+    },
+    footerText: {
+        fontSize: 8,
+        color: '#9ca3af',
+        textAlign: 'center',
+        marginBottom: 4,
     },
     watermark: {
         marginTop: 22,
@@ -225,14 +355,15 @@ const styles = StyleSheet.create({
     },
 });
 
-export function QuoteDocument({
-    quoteNumber,
+export function InvoiceDocument({
+    invoiceNumber,
     createdAt,
-    validUntil,
+    dueDate,
     companyName,
     companyAddress,
     companyPhone,
     companyLogoUrl,
+    companyTrn,
     clientName,
     clientCompany,
     projectTitle,
@@ -241,26 +372,36 @@ export function QuoteDocument({
     subtotal,
     vat,
     total,
-    estimatedDuration,
     currencyCode,
     taxRate,
     isSubscribed,
-}: QuoteDocumentProps) {
+    bankDetails,
+}: InvoiceDocumentProps) {
     // Top-level sanitization to prevent textkit.js crashes
     const showArabic = pdfMode !== 'english_only';
 
+    // Sanitize bank details (handle stringified JSON from Supabase)
+    const safeBankDetails = typeof bankDetails === 'string' ? JSON.parse(bankDetails) : (bankDetails || null);
+    const safeSwiftCode = safeBankDetails?.swift_code ? String(safeBankDetails.swift_code).trim() : null;
+    const safeIban = safeBankDetails?.iban ? String(safeBankDetails.iban).trim() : null;
+    const safeBranch = safeBankDetails?.branch ? String(safeBankDetails.branch).trim() : null;
+    const safeBankName = safeBankDetails?.bank_name ? String(safeBankDetails.bank_name).trim() : '';
+    const safeAccountName = safeBankDetails?.account_name ? String(safeBankDetails.account_name).trim() : '';
+    const safeAccountNumber = safeBankDetails?.account_number ? String(safeBankDetails.account_number).trim() : '';
+    const safeBankCurrency = safeBankDetails?.currency ? String(safeBankDetails.currency).trim() : '';
+
     // Sanitize all string fields
-    const safeQuoteNumber = quoteNumber ? String(quoteNumber).trim() : '';
+    const safeInvoiceNumber = invoiceNumber ? String(invoiceNumber).trim() : '';
     const safeCreatedAt = createdAt ? String(createdAt).trim() : '';
-    const safeValidUntil = validUntil ? String(validUntil).trim() : '';
+    const safeDueDate = dueDate ? String(dueDate).trim() : '';
     const safeCompanyName = companyName ? String(companyName).trim() : '';
     const safeCompanyAddress = companyAddress ? String(companyAddress).trim() : '';
     const safeCompanyPhone = companyPhone ? String(companyPhone).trim() : '';
     const safeCompanyLogoUrl = companyLogoUrl ? String(companyLogoUrl).trim() : null;
+    const safeCompanyTrn = companyTrn ? String(companyTrn).trim() : null;
     const safeClientName = clientName ? String(clientName).trim() : '';
     const safeClientCompany = clientCompany ? String(clientCompany).trim() : null;
     const safeProjectTitle = projectTitle ? String(projectTitle).trim() : '';
-    const safeEstimatedDuration = estimatedDuration ? String(estimatedDuration).trim() : '';
     const safeCurrencyCode = currencyCode ? String(currencyCode).trim() : 'AED';
 
     // Sanitize line items (filter out null/undefined)
@@ -281,6 +422,11 @@ export function QuoteDocument({
     return (
         <Document>
             <Page size="A4" style={styles.page}>
+                <View style={styles.headerBanner}>
+                    <Text style={styles.taxInvoiceLabel}>TAX INVOICE</Text>
+                    {showArabic ? <Text style={styles.taxInvoiceLabelAr}>فاتورة ضريبية</Text> : null}
+                </View>
+
                 <View style={styles.header}>
                     <View style={styles.companyBlock}>
                         {safeCompanyLogoUrl ? (
@@ -290,34 +436,35 @@ export function QuoteDocument({
                         )}
                         {isSubscribed === false ? <Text style={styles.companyMeta}>{safeCompanyAddress}</Text> : null}
                         <Text style={styles.phoneLabel}>Phone: {safeCompanyPhone}</Text>
+                        {safeCompanyTrn ? (
+                            <View style={styles.trnRow}>
+                                <Text style={styles.trnLabel}>TRN:</Text>
+                                <Text style={styles.trnValue}>{safeCompanyTrn}</Text>
+                            </View>
+                        ) : null}
                         <Text style={styles.projectTitle}>{safeProjectTitle}</Text>
-                    </View>
-
-                    <View style={styles.quotationBlock}>
-                        <Text style={styles.quotationTitle}>QUOTATION</Text>
-                        {showArabic ? <Text style={styles.arabicTitle}>{ARABIC_LABELS.quotation}</Text> : null}
                     </View>
                 </View>
 
-                <View style={styles.subHeader}>
-                    <View style={styles.subHeaderItem}>
-                        <Text style={styles.label}>Quote #</Text>
-                        <Text style={styles.value}>{safeQuoteNumber}</Text>
+                <View style={styles.invoiceDetailsBox}>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Invoice Number:</Text>
+                        <Text style={styles.detailValue}>{safeInvoiceNumber}</Text>
                     </View>
-                    <View style={styles.subHeaderItem}>
-                        <Text style={styles.label}>Date</Text>
-                        <Text style={styles.value}>{safeCreatedAt}</Text>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Invoice Date:</Text>
+                        <Text style={styles.detailValue}>{safeCreatedAt}</Text>
                     </View>
-                    <View style={styles.subHeaderItem}>
-                        <Text style={styles.label}>Valid Until</Text>
-                        <Text style={styles.value}>{safeValidUntil}</Text>
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Due Date:</Text>
+                        <Text style={styles.detailValueHighlight}>{safeDueDate}</Text>
                     </View>
                 </View>
 
                 <View style={styles.clientBox}>
-                    <Text style={styles.sectionTitle}>Client Information</Text>
-                    <Text>{`To: ${safeClientName}`}</Text>
-                    <Text>{`Company: ${safeClientCompany || '-'}`}</Text>
+                    <Text style={styles.sectionTitle}>Bill To</Text>
+                    <Text>{safeClientName}</Text>
+                    {safeClientCompany ? <Text>{safeClientCompany}</Text> : null}
                 </View>
 
                 <View style={styles.table}>
@@ -382,20 +529,65 @@ export function QuoteDocument({
                     </View>
                 </View>
 
-                <View style={styles.termsBox}>
-                    <Text style={styles.sectionTitle}>Terms</Text>
-                    <View style={styles.termRow}>
-                        <View>
-                            <Text>Payment Terms: 50% advance on confirmation, 50% on project completion</Text>
-                            {showArabic ? <Text style={styles.arabicLabel}>{ARABIC_LABELS.paymentTerms}</Text> : null}
+                {safeBankDetails && (
+                    <View style={styles.paymentSection}>
+                        <View style={styles.paymentHeader}>
+                            <Text style={styles.paymentTitle}>Payment Information</Text>
+                        </View>
+
+                        <View style={styles.bankDetailsGrid}>
+                            <View style={styles.bankDetailRow}>
+                                <Text style={styles.bankLabel}>Bank Name:</Text>
+                                <Text style={styles.bankValue}>{safeBankName}</Text>
+                            </View>
+                            <View style={styles.bankDetailRow}>
+                                <Text style={styles.bankLabel}>Account Name:</Text>
+                                <Text style={styles.bankValue}>{safeAccountName}</Text>
+                            </View>
+                            <View style={styles.bankDetailRow}>
+                                <Text style={styles.bankLabel}>Account Number:</Text>
+                                <Text style={styles.bankValueMono}>{safeAccountNumber}</Text>
+                            </View>
+                            {safeIban ? (
+                                <View style={styles.bankDetailRow}>
+                                    <Text style={styles.bankLabel}>IBAN:</Text>
+                                    <Text style={styles.bankValueMono}>{safeIban}</Text>
+                                </View>
+                            ) : null}
+                            {safeSwiftCode ? (
+                                <View style={styles.bankDetailRow}>
+                                    <Text style={styles.bankLabel}>Swift Code:</Text>
+                                    <Text style={styles.bankValueMono}>{safeSwiftCode}</Text>
+                                </View>
+                            ) : null}
+                            {safeBranch ? (
+                                <View style={styles.bankDetailRow}>
+                                    <Text style={styles.bankLabel}>Branch:</Text>
+                                    <Text style={styles.bankValue}>{safeBranch}</Text>
+                                </View>
+                            ) : null}
+                            <View style={styles.bankDetailRow}>
+                                <Text style={styles.bankLabel}>Currency:</Text>
+                                <Text style={styles.bankValue}>{safeBankCurrency}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.paymentInstructions}>
+                            <Text style={styles.instructionsTitle}>Payment Terms:</Text>
+                            <Text style={styles.instructionsText}>• Payment due within 30 days from invoice date</Text>
+                            <Text style={styles.instructionsText}>• Please include invoice number in payment reference</Text>
+                            <Text style={styles.instructionsText}>• Bank transfer is the preferred payment method</Text>
                         </View>
                     </View>
-                    <View style={styles.termRow}>
-                        <View>
-                            <Text>{`Estimated Duration: ${safeEstimatedDuration}`}</Text>
-                            {showArabic ? <Text style={styles.arabicLabel}>{ARABIC_LABELS.estimatedDuration}</Text> : null}
-                        </View>
-                    </View>
+                )}
+
+                <View style={styles.footer}>
+                    <Text style={styles.footerText}>
+                        This is a computer-generated invoice and does not require a signature.
+                    </Text>
+                    <Text style={styles.footerText}>
+                        For queries, please contact {safeCompanyName} at {safeCompanyPhone}
+                    </Text>
                 </View>
 
                 {isSubscribed === false ? <Text style={styles.watermark}>Generated with QuotePro</Text> : null}

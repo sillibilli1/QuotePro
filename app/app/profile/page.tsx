@@ -25,10 +25,10 @@ export default async function ProfilePage() {
     // Fetch profile fields needed by the settings sections
     const { data: profile } = (await supabase
         .from('profiles')
-        .select('full_name, company_name, phone, plan, is_subscribed, company_logo_url')
+        .select('full_name, company_name, phone, plan, is_subscribed, company_logo_url, bank_details')
         .eq('id', user.id)
         .maybeSingle()) as {
-            data: Pick<ProfileRecord, 'full_name' | 'company_name' | 'phone' | 'plan' | 'is_subscribed' | 'company_logo_url'> | null;
+            data: Pick<ProfileRecord, 'full_name' | 'company_name' | 'phone' | 'plan' | 'is_subscribed' | 'company_logo_url' | 'bank_details'> | null;
         };
 
     const plan: PlanTier = (profile?.plan as PlanTier | null) ?? 'free';

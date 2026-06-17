@@ -86,7 +86,7 @@ export function DashboardClient({
     }, [addToast]);
 
     const updateStatus = useCallback(
-        async (quoteId: string, status: 'won' | 'lost') => {
+        async (quoteId: string, status: 'won' | 'lost' | 'accepted' | 'declined') => {
             setStatusUpdatingId(quoteId);
             try {
                 const res = await fetch(`/api/quotes/${quoteId}/status`, {
@@ -99,10 +99,13 @@ export function DashboardClient({
                     throw new Error(result?.error ?? 'Unable to update quote status.');
                 }
                 await refreshStats();
-                addToast(
-                    `Quote marked as ${status === 'won' ? 'won 🎉' : 'lost'}.`,
-                    status === 'won' ? 'success' : 'info',
-                );
+                const messages = {
+                    won: 'Quote marked as won 🎉',
+                    lost: 'Quote marked as lost',
+                    accepted: 'Quote marked as accepted ✅',
+                    declined: 'Quote marked as declined ❌',
+                };
+                addToast(messages[status], status === 'won' || status === 'accepted' ? 'success' : 'info');
             } catch {
                 addToast('Something went wrong. Please try again.', 'error');
             } finally {
