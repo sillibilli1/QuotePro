@@ -121,14 +121,14 @@ export async function POST(_: Request, context: { params: { id: string } }) {
         dueDate.setDate(dueDate.getDate() + 30);
 
         // Update quote record
-        const { error: updateError } = await supabase
+        const { error: updateError } = await (supabase as any)
             .from('quotes')
             .update({
                 is_invoice: true,
                 invoice_number: invoiceNumber,
                 invoice_date: invoiceDate.toISOString(),
                 due_date: dueDate.toISOString()
-            } as any)
+            })
             .eq('id', quoteId);
 
         if (updateError) {

@@ -132,7 +132,7 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
             updated_at: new Date().toISOString(),
         };
 
-        const { error: upsertError } = await supabase
+        const { error: upsertError } = await (supabase as any)
             .from('profiles')
             .upsert([profilePayload]);
 

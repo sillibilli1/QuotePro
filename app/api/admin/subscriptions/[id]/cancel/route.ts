@@ -9,7 +9,7 @@ export async function POST(
     const admin = await requireAdmin();
     const supabase = await createClient();
 
-    await supabase
+    await (supabase as any)
         .from('profiles')
         .update({
             is_subscribed: false,
@@ -18,7 +18,7 @@ export async function POST(
         })
         .eq('id', params.id);
 
-    await supabase.from('admin_logs').insert({
+    await (supabase as any).from('admin_logs').insert({
         event_type: 'admin_action',
         details: {
             action: 'cancel_subscription',

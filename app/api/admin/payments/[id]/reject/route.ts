@@ -9,7 +9,7 @@ export async function POST(
     const admin = await requireAdmin();
     const supabase = await createClient();
 
-    await supabase
+    await (supabase as any)
         .from('manual_payment_requests')
         .update({
             status: 'rejected',
@@ -18,7 +18,7 @@ export async function POST(
         })
         .eq('id', params.id);
 
-    await supabase.from('admin_logs').insert({
+    await (supabase as any).from('admin_logs').insert({
         event_type: 'admin_action',
         details: {
             action: 'reject_payment',

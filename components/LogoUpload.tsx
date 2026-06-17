@@ -47,7 +47,7 @@ export function LogoUpload({ userId, currentLogoUrl, onLogoUpdated }: LogoUpload
                 .from('logos')
                 .getPublicUrl(fileName);
 
-            const { error: updateError } = await supabase
+            const { error: updateError } = await (supabase as any)
                 .from('profiles')
                 .update({ company_logo_url: publicUrl })
                 .eq('id', userId);
@@ -67,7 +67,7 @@ export function LogoUpload({ userId, currentLogoUrl, onLogoUpdated }: LogoUpload
     async function handleRemove() {
         setUploading(true);
         try {
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('profiles')
                 .update({ company_logo_url: null })
                 .eq('id', userId);
@@ -127,9 +127,8 @@ export function LogoUpload({ userId, currentLogoUrl, onLogoUpdated }: LogoUpload
                             disabled={uploading}
                             variant="secondary"
                             size="sm"
-                            asChild
                         >
-                            <span>{uploading ? 'Uploading...' : 'Upload Logo'}</span>
+                            {uploading ? 'Uploading...' : 'Upload Logo'}
                         </Button>
                     </label>
                     <span className="text-xs text-slate-400">PNG, JPG up to 2MB</span>

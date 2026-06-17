@@ -21,22 +21,22 @@ export async function POST(
 
     // Calculate subscription end date based on billing interval
     const now = new Date();
-    const billingInterval = paymentRequest.billing_interval || 'monthly';
+    const billingInterval = (paymentRequest as any).billing_interval || 'monthly';
     const subscriptionEndsAt = billingInterval === 'annual'
         ? new Date(now.setFullYear(now.getFullYear() + 1))
         : new Date(now.setMonth(now.getMonth() + 1));
 
-    await supabase
+    await (supabase as any)
         .from('profiles')
         .update({
             is_subscribed: true,
-            plan: paymentRequest.plan,
+            plan: (paymentRequest as any).plan,
             billing_interval: billingInterval,
             subscription_ends_at: subscriptionEndsAt.toISOString(),
         })
-        .eq('id', paymentRequest.user_id);
+        .eq('id', (paymentRequest as any).user_id);
 
-    await supabase
+    await (supabase as any)
         .from('manual_payment_requests')
         .update({
             status: 'approved',
@@ -45,13 +45,13 @@ export async function POST(
         })
         .eq('id', params.id);
 
-    await supabase.from('admin_logs').insert({
+    await (supabase as any).from('admin_logs').insert({
         event_type: 'admin_action',
         details: {
             action: 'approve_payment',
             request_id: params.id,
-            user_id: paymentRequest.user_id,
-            plan: paymentRequest.plan,
+            user_id: (paymentRequest as any).user_id,
+            plan: (paymentRequest as any).plan,
             billing_interval: billingInterval,
             subscription_ends_at: subscriptionEndsAt.toISOString(),
         },
