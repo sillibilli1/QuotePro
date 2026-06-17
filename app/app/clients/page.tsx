@@ -11,7 +11,7 @@ export default async function ClientsPage() {
         redirect('/auth');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
     const res = await fetch(`${baseUrl}/api/clients`, {
         headers: { Cookie: (await import('next/headers')).cookies().toString() },
         cache: 'no-store',

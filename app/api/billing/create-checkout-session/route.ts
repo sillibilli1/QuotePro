@@ -6,7 +6,7 @@ import type { PlanTier } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL;
 
 export async function POST(request: Request) {
     try {

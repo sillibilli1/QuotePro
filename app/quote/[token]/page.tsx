@@ -128,7 +128,7 @@ function getBaseUrl() {
         return `${protocol}://${host}`;
     }
 
-    return 'http://localhost:3000';
+    return process.env.NEXT_PUBLIC_SITE_URL || '';
 }
 
 async function trackView(token: string) {

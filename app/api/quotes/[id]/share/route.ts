@@ -34,7 +34,7 @@ function getBaseUrl() {
         return `https://${vercelUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
     }
 
-    return 'http://localhost:3000';
+    return process.env.NEXT_PUBLIC_SITE_URL || '';
 }
 
 export async function POST(_: Request, context: { params: { id: string } }) {

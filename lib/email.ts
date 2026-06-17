@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+const APP_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || process.env.NEXT_PUBLIC_SITE_URL;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL?.trim() || 'QuotePro <onboarding@resend.dev>';
 
 let resendClient: Resend | null = null;
