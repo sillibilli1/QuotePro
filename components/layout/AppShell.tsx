@@ -43,8 +43,8 @@ function TopBar({ userEmail, plan, isSubscribed, onSignOut }: TopBarProps) {
         : 'free';
 
     const handleBack = () => {
-        // If on quote detail page, hard refresh to /app/quotes/new to bypass cache
-        if (pathname?.startsWith('/quotes/')) {
+        // Hard refresh when navigating to /app/quotes/new to prevent blank page bug
+        if (pathname?.startsWith('/quotes/') || pathname?.includes('/quotes/new')) {
             window.location.href = '/app/quotes/new';
         } else {
             router.back();

@@ -59,7 +59,8 @@ const BRIEF_MAX = 1000;
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function NewQuotePage() {
-    return <NewQuotePageContent />;
+    const [remountKey, setRemountKey] = useState(Date.now());
+    return <NewQuotePageContent key={remountKey} />;
 }
 
 function NewQuotePageContent() {
@@ -118,13 +119,17 @@ function NewQuotePageContent() {
         }
     }, [loading, router, session]);
 
-    // Reset state on mount if navigating back to page (prevents blank page)
+    // AGGRESSIVE state clearing on mount - prevents blank page bug
     useEffect(() => {
-        if (draft.state === 'saving' || draft.state === 'preview') {
-            actions.reset();
-        } else if (draft.quote_data && (!draft.quote_data.line_items || !Array.isArray(draft.quote_data.line_items))) {
-            actions.reset();
+        // Clear any leftover sessionStorage state immediately
+        try {
+            sessionStorage.removeItem('qp_quote_draft');
+        } catch (e) {
+            console.error('Failed to clear sessionStorage:', e);
         }
+
+        // Force reset to clean form state
+        actions.reset();
     }, []);
 
     // Load usage
@@ -389,279 +394,280 @@ function NewQuotePageContent() {
         <div className="pb-32">
             <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
 
-            {/* Show form only when in form or generating state */}
-            {(draft.state === 'form' || draft.state === 'generating') && (
-                <Card className="max-w-3xl mx-auto rounded-2xl border border-slate-800 bg-[#121620] p-6 md:p-8 shadow-xl">
-                    <div className="mb-8">
-                        <h1 className="text-2xl font-bold text-white mb-2">New Quote</h1>
-                        <p className="text-sm text-slate-400">Fill in the details below — QuotePro will generate a UAE-ready quotation with VAT and structured line items.</p>
-                    </div>
-                    <form
-                        className="flex flex-col gap-5"
-                        onSubmit={handleSubmit(onSubmit)}
-                        noValidate
-                        aria-busy={isGenerating}
-                    >
-                        <div ref={errors.project_type ? firstErrorRef : null}>
-                            <Controller
-                                name="project_type"
-                                control={control}
-                                render={({ field }: { field: { value: string; onChange: (v: string) => void } }) => (
-                                    <Select
-                                        label="Project Type"
-                                        placeholder="Select project type"
-                                        options={PROJECT_TYPE_OPTIONS}
-                                        value={field.value}
-                                        onValueChange={field.onChange}
-                                        disabled={isGenerating}
-                                        error={errors.project_type?.message}
-                                    />
-                                )}
-                            />
+            {/* Show form - always render unless explicitly in preview state with valid data */}
+            {(draft.state === 'form' || draft.state === 'generating' || draft.state === 'error' ||
+                !draft.quote_data || !draft.quote_data.line_items) && (
+                    <Card className="max-w-3xl mx-auto rounded-2xl border border-slate-800 bg-[#121620] p-6 md:p-8 shadow-xl">
+                        <div className="mb-8">
+                            <h1 className="text-2xl font-bold text-white mb-2">New Quote</h1>
+                            <p className="text-sm text-slate-400">Fill in the details below — QuotePro will generate a UAE-ready quotation with VAT and structured line items.</p>
                         </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    PDF Template Language
-                                </p>
-                                <p className="mt-1 text-sm text-slate-400">
-                                    Choose the PDF layout that best matches your client region.
-                                </p>
-                            </div>
-
-                            <Controller
-                                name="pdf_mode"
-                                control={control}
-                                render={({ field }) => (
-                                    <div className="inline-flex rounded-full border border-slate-800 bg-[#0F131D] p-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => field.onChange('bilingual')}
-                                            disabled={isGenerating}
-                                            className={[
-                                                'rounded-full px-4 py-2 text-sm font-medium transition-all',
-                                                field.value === 'bilingual'
-                                                    ? 'bg-slate-800 text-white ring-1 ring-slate-600'
-                                                    : 'bg-transparent text-slate-400 hover:text-slate-300',
-                                            ].join(' ')}
-                                        >
-                                            Bilingual (English + Arabic)
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => field.onChange('english_only')}
-                                            disabled={isGenerating}
-                                            className={[
-                                                'rounded-full px-4 py-2 text-sm font-medium transition-all',
-                                                field.value === 'english_only'
-                                                    ? 'bg-slate-800 text-white ring-1 ring-slate-600'
-                                                    : 'bg-transparent text-slate-400 hover:text-slate-300',
-                                            ].join(' ')}
-                                        >
-                                            Standard (English Only)
-                                        </button>
-                                    </div>
-                                )}
-                            />
-                        </div>
-
-                        {/* Template Library Section */}
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-sm text-slate-400">Select a template to auto-fill the project brief, or write your own down.</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {quoteTemplates.map((template) => {
-                                    const isSelected = selectedTemplate === template.id;
-                                    const colorClasses = {
-                                        blue: {
-                                            border: 'border-blue-800/50',
-                                            bg: 'bg-blue-900/20',
-                                            iconColor: 'text-blue-400',
-                                        },
-                                        amber: {
-                                            border: 'border-amber-800/50',
-                                            bg: 'bg-amber-900/20',
-                                            iconColor: 'text-amber-400',
-                                        },
-                                        green: {
-                                            border: 'border-emerald-800/50',
-                                            bg: 'bg-emerald-900/20',
-                                            iconColor: 'text-emerald-400',
-                                        },
-                                        purple: {
-                                            border: 'border-purple-800/50',
-                                            bg: 'bg-purple-900/20',
-                                            iconColor: 'text-purple-400',
-                                        },
-                                    };
-                                    const colors = colorClasses[template.color as keyof typeof colorClasses];
-
-                                    return (
-                                        <button
-                                            key={template.id}
-                                            type="button"
-                                            onClick={() => handleTemplateSelect(template.id)}
-                                            disabled={isGenerating}
-                                            className={`group w-full text-left rounded-lg border transition-all p-4 cursor-pointer hover:scale-[1.02] ${colors.border} ${colors.bg} ${isSelected ? 'ring-2 ring-slate-500' : ''}`}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <div className={`shrink-0 ${colors.iconColor}`}>
-                                                    {iconMap[template.icon]}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold text-base mb-0.5 text-slate-200">{template.title}</h3>
-                                                    <p className="text-xs text-slate-400 mb-2">{template.description}</p>
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-950/40 text-slate-400">
-                                                        {template.category}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div ref={errors.brief_text ? firstErrorRef : null}>
-                            <Textarea
-                                label="Project Brief"
-                                id="project-brief"
-                                rows={4}
-                                required
-                                placeholder="Describe the work… e.g. Villa AC installation for 4-bedroom home including materials and labor"
-                                error={errors.brief_text?.message}
-                                disabled={isGenerating}
-                                {...register('brief_text')}
-                            />
-                            <div className="mt-1.5 flex items-center justify-between gap-2">
-                                <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                                    <motion.div
-                                        className={briefLen >= BRIEF_MIN ? 'h-full bg-brand' : 'h-full bg-slate-600'}
-                                        animate={{ width: `${Math.min((briefLen / BRIEF_MIN) * 100, 100)}%` }}
-                                        initial={{ width: '0%' }}
-                                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                                    />
-                                </div>
-                                <p className={`shrink-0 text-xs tabular-nums ${briefLen >= BRIEF_MIN ? 'text-brand-light' : 'text-slate-500'}`}>
-                                    {briefLen}/{BRIEF_MAX}
-                                </p>
-                            </div>
-                        </div>
-
-                        <Select
-                            label="Select Client"
-                            placeholder="Select a client or add new"
-                            options={[
-                                { value: 'new', label: '+ Add New Client' },
-                                ...clients.map((client) => ({
-                                    value: client.id,
-                                    label: `${client.name}${client.company ? ` (${client.company})` : ''}`,
-                                })),
-                            ]}
-                            value={selectedClientId}
-                            onValueChange={(value) => {
-                                setSelectedClientId(value);
-                                if (value === 'new') {
-                                    setValue('client_name', '');
-                                    setValue('client_company', '');
-                                } else {
-                                    const selectedClient = clients.find(c => c.id === value);
-                                    if (selectedClient) {
-                                        setValue('client_name', selectedClient.name);
-                                        setValue('client_company', selectedClient.company || '');
-                                    }
-                                }
-                            }}
-                            disabled={isGenerating}
-                        />
-
-                        <div ref={errors.client_name ? firstErrorRef : null}>
-                            <Input
-                                label="Client Name"
-                                placeholder="Client full name"
-                                autoComplete="name"
-                                error={errors.client_name?.message}
-                                disabled={isGenerating}
-                                {...register('client_name')}
-                            />
-                        </div>
-
-                        <Input
-                            label="Client Company"
-                            placeholder="Client company name (optional)"
-                            autoComplete="organization"
-                            error={errors.client_company?.message}
-                            disabled={isGenerating}
-                            {...register('client_company')}
-                        />
-
-                        <div ref={errors.approximate_value_aed ? firstErrorRef : null}>
-                            <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                                Approximate Value
-                            </label>
-                            <div className="flex gap-2">
+                        <form
+                            className="flex flex-col gap-5"
+                            onSubmit={handleSubmit(onSubmit)}
+                            noValidate
+                            aria-busy={isGenerating}
+                        >
+                            <div ref={errors.project_type ? firstErrorRef : null}>
                                 <Controller
-                                    name="currency"
+                                    name="project_type"
                                     control={control}
-                                    render={({ field }) => (
-                                        <select
+                                    render={({ field }: { field: { value: string; onChange: (v: string) => void } }) => (
+                                        <Select
+                                            label="Project Type"
+                                            placeholder="Select project type"
+                                            options={PROJECT_TYPE_OPTIONS}
                                             value={field.value}
-                                            onChange={(e) => {
-                                                const newCurrency = e.target.value as SupportedCurrency;
-                                                field.onChange(newCurrency);
-                                                setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
-                                            }}
+                                            onValueChange={field.onChange}
                                             disabled={isGenerating}
-                                            className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                                        >
-                                            {Object.entries(CURRENCIES).map(([code, config]) => (
-                                                <option key={code} value={code}>
-                                                    {config.symbol}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            error={errors.project_type?.message}
+                                        />
                                     )}
                                 />
-                                <Input
-                                    type="number"
-                                    inputMode="decimal"
-                                    min="0.01"
-                                    step="0.01"
-                                    placeholder="e.g. 35000"
-                                    error={errors.approximate_value_aed?.message}
-                                    disabled={isGenerating}
-                                    {...register('approximate_value_aed')}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                        PDF Template Language
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-400">
+                                        Choose the PDF layout that best matches your client region.
+                                    </p>
+                                </div>
+
+                                <Controller
+                                    name="pdf_mode"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <div className="inline-flex rounded-full border border-slate-800 bg-[#0F131D] p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => field.onChange('bilingual')}
+                                                disabled={isGenerating}
+                                                className={[
+                                                    'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                                                    field.value === 'bilingual'
+                                                        ? 'bg-slate-800 text-white ring-1 ring-slate-600'
+                                                        : 'bg-transparent text-slate-400 hover:text-slate-300',
+                                                ].join(' ')}
+                                            >
+                                                Bilingual (English + Arabic)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => field.onChange('english_only')}
+                                                disabled={isGenerating}
+                                                className={[
+                                                    'rounded-full px-4 py-2 text-sm font-medium transition-all',
+                                                    field.value === 'english_only'
+                                                        ? 'bg-slate-800 text-white ring-1 ring-slate-600'
+                                                        : 'bg-transparent text-slate-400 hover:text-slate-300',
+                                                ].join(' ')}
+                                            >
+                                                Standard (English Only)
+                                            </button>
+                                        </div>
+                                    )}
                                 />
                             </div>
-                        </div>
 
-                        {formError && (
-                            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                                {formError}
-                            </p>
-                        )}
+                            {/* Template Library Section */}
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-sm text-slate-400">Select a template to auto-fill the project brief, or write your own down.</p>
+                                </div>
 
-                        <GenerationLoader active={isGenerating} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {quoteTemplates.map((template) => {
+                                        const isSelected = selectedTemplate === template.id;
+                                        const colorClasses = {
+                                            blue: {
+                                                border: 'border-blue-800/50',
+                                                bg: 'bg-blue-900/20',
+                                                iconColor: 'text-blue-400',
+                                            },
+                                            amber: {
+                                                border: 'border-amber-800/50',
+                                                bg: 'bg-amber-900/20',
+                                                iconColor: 'text-amber-400',
+                                            },
+                                            green: {
+                                                border: 'border-emerald-800/50',
+                                                bg: 'bg-emerald-900/20',
+                                                iconColor: 'text-emerald-400',
+                                            },
+                                            purple: {
+                                                border: 'border-purple-800/50',
+                                                bg: 'bg-purple-900/20',
+                                                iconColor: 'text-purple-400',
+                                            },
+                                        };
+                                        const colors = colorClasses[template.color as keyof typeof colorClasses];
 
-                        <div className="hidden md:block">
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                size="lg"
-                                fullWidthMobile
-                                loading={isGenerating}
-                                disabled={isGenerating || usage?.is_limit_reached}
-                                className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold"
-                            >
-                                {usage?.is_limit_reached ? 'Monthly Limit Reached' : 'Generate My Quote'}
-                            </Button>
-                        </div>
-                    </form>
-                </Card>
-            )}
+                                        return (
+                                            <button
+                                                key={template.id}
+                                                type="button"
+                                                onClick={() => handleTemplateSelect(template.id)}
+                                                disabled={isGenerating}
+                                                className={`group w-full text-left rounded-lg border transition-all p-4 cursor-pointer hover:scale-[1.02] ${colors.border} ${colors.bg} ${isSelected ? 'ring-2 ring-slate-500' : ''}`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`shrink-0 ${colors.iconColor}`}>
+                                                        {iconMap[template.icon]}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-semibold text-base mb-0.5 text-slate-200">{template.title}</h3>
+                                                        <p className="text-xs text-slate-400 mb-2">{template.description}</p>
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-950/40 text-slate-400">
+                                                            {template.category}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div ref={errors.brief_text ? firstErrorRef : null}>
+                                <Textarea
+                                    label="Project Brief"
+                                    id="project-brief"
+                                    rows={4}
+                                    required
+                                    placeholder="Describe the work… e.g. Villa AC installation for 4-bedroom home including materials and labor"
+                                    error={errors.brief_text?.message}
+                                    disabled={isGenerating}
+                                    {...register('brief_text')}
+                                />
+                                <div className="mt-1.5 flex items-center justify-between gap-2">
+                                    <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                                        <motion.div
+                                            className={briefLen >= BRIEF_MIN ? 'h-full bg-brand' : 'h-full bg-slate-600'}
+                                            animate={{ width: `${Math.min((briefLen / BRIEF_MIN) * 100, 100)}%` }}
+                                            initial={{ width: '0%' }}
+                                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                                        />
+                                    </div>
+                                    <p className={`shrink-0 text-xs tabular-nums ${briefLen >= BRIEF_MIN ? 'text-brand-light' : 'text-slate-500'}`}>
+                                        {briefLen}/{BRIEF_MAX}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Select
+                                label="Select Client"
+                                placeholder="Select a client or add new"
+                                options={[
+                                    { value: 'new', label: '+ Add New Client' },
+                                    ...clients.map((client) => ({
+                                        value: client.id,
+                                        label: `${client.name}${client.company ? ` (${client.company})` : ''}`,
+                                    })),
+                                ]}
+                                value={selectedClientId}
+                                onValueChange={(value) => {
+                                    setSelectedClientId(value);
+                                    if (value === 'new') {
+                                        setValue('client_name', '');
+                                        setValue('client_company', '');
+                                    } else {
+                                        const selectedClient = clients.find(c => c.id === value);
+                                        if (selectedClient) {
+                                            setValue('client_name', selectedClient.name);
+                                            setValue('client_company', selectedClient.company || '');
+                                        }
+                                    }
+                                }}
+                                disabled={isGenerating}
+                            />
+
+                            <div ref={errors.client_name ? firstErrorRef : null}>
+                                <Input
+                                    label="Client Name"
+                                    placeholder="Client full name"
+                                    autoComplete="name"
+                                    error={errors.client_name?.message}
+                                    disabled={isGenerating}
+                                    {...register('client_name')}
+                                />
+                            </div>
+
+                            <Input
+                                label="Client Company"
+                                placeholder="Client company name (optional)"
+                                autoComplete="organization"
+                                error={errors.client_company?.message}
+                                disabled={isGenerating}
+                                {...register('client_company')}
+                            />
+
+                            <div ref={errors.approximate_value_aed ? firstErrorRef : null}>
+                                <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                                    Approximate Value
+                                </label>
+                                <div className="flex gap-2">
+                                    <Controller
+                                        name="currency"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <select
+                                                value={field.value}
+                                                onChange={(e) => {
+                                                    const newCurrency = e.target.value as SupportedCurrency;
+                                                    field.onChange(newCurrency);
+                                                    setValue('tax_rate', CURRENCIES[newCurrency]?.tax ?? 0);
+                                                }}
+                                                disabled={isGenerating}
+                                                className="h-[42px] w-28 rounded-xl border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-white transition hover:border-slate-600 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                                            >
+                                                {Object.entries(CURRENCIES).map(([code, config]) => (
+                                                    <option key={code} value={code}>
+                                                        {config.symbol}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    />
+                                    <Input
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0.01"
+                                        step="0.01"
+                                        placeholder="e.g. 35000"
+                                        error={errors.approximate_value_aed?.message}
+                                        disabled={isGenerating}
+                                        {...register('approximate_value_aed')}
+                                    />
+                                </div>
+                            </div>
+
+                            {formError && (
+                                <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                                    {formError}
+                                </p>
+                            )}
+
+                            <GenerationLoader active={isGenerating} />
+
+                            <div className="hidden md:block">
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="lg"
+                                    fullWidthMobile
+                                    loading={isGenerating}
+                                    disabled={isGenerating || usage?.is_limit_reached}
+                                    className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold"
+                                >
+                                    {usage?.is_limit_reached ? 'Monthly Limit Reached' : 'Generate My Quote'}
+                                </Button>
+                            </div>
+                        </form>
+                    </Card>
+                )}
 
             {/* Show preview when quote is generated */}
             {isPreview && draft.quote_data?.line_items && draft.context && (
