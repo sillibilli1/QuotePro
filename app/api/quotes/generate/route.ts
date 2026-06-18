@@ -169,6 +169,13 @@ async function callOpenAI(systemPrompt: string, userPrompt: string) {
     } catch (error: any) {
         console.error('🟢 UPSTREAM AI ERROR:', error);
 
+        // Handle 502 Bad Gateway from upstream API
+        if (error?.status === 502) {
+            const gatewayError = new Error('AI Provider is currently unavailable or timed out.');
+            (gatewayError as any).status = 502;
+            throw gatewayError;
+        }
+
         // Handle rate limit errors
         if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
             const rateLimitError = new Error('Rate limit exceeded');
@@ -181,6 +188,13 @@ async function callOpenAI(systemPrompt: string, userPrompt: string) {
             const quotaError = new Error('AI service quota exceeded');
             (quotaError as any).status = 402;
             throw quotaError;
+        }
+
+        // Handle connection/network errors
+        if (error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND' || error?.code === 'ETIMEDOUT') {
+            const networkError = new Error('AI Provider is currently unavailable or timed out.');
+            (networkError as any).status = 502;
+            throw networkError;
         }
 
         throw error;
@@ -325,6 +339,14 @@ export async function POST(request: Request) {
         });
     } catch (error: any) {
         console.error('Quote generation failed:', error);
+
+        // Handle 502 Bad Gateway from AI provider
+        if (error.status === 502) {
+            return NextResponse.json<QuoteGenerateResponse>(
+                { success: false, error: 'AI Provider is currently unavailable or timed out. Please try again in a moment.', field: 'form' },
+                { status: 502 }
+            );
+        }
 
         // Handle specific error types
         if (error.status === 429) {
