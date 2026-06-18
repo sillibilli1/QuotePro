@@ -97,7 +97,12 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
     const isDirty =
         values.full_name !== initialValues.full_name ||
         values.company_name !== initialValues.company_name ||
-        values.phone !== initialValues.phone;
+        values.phone !== initialValues.phone ||
+        bankDetails !== '' ||
+        trn !== '' ||
+        bankDetailsStructured.bank_name !== '' ||
+        bankDetailsStructured.account_name !== '' ||
+        bankDetailsStructured.account_number !== '';
 
     // ── Save handler — keeps the exact same Supabase upsert logic ─────────────
     async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -345,6 +350,7 @@ export function ProfileSettings({ initialValues, userEmail, plan, isSubscribed, 
                                 className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-text-primary focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
                             >
                                 <option value="AED">AED (UAE Dirham)</option>
+                                <option value="PKR">PKR (Pakistani Rupee)</option>
                                 <option value="USD">USD (US Dollar)</option>
                                 <option value="EUR">EUR (Euro)</option>
                                 <option value="GBP">GBP (British Pound)</option>

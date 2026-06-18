@@ -504,26 +504,6 @@ function QuoteDetailPageContent() {
                                     {quoteData.project_title || 'Quotation'}
                                 </h1>
                             </div>
-                            <div className="flex flex-wrap gap-2 sm:justify-end">
-                                <Link
-                                    href="/app/quotes/new"
-                                    className={cn(
-                                        buttonVariants({ variant: 'secondary', size: 'sm' }),
-                                        'border-slate-700 bg-transparent text-slate-300 hover:border-slate-500',
-                                    )}
-                                >
-                                    New Quote
-                                </Link>
-                                <Link
-                                    href="/app/dashboard"
-                                    className={cn(
-                                        buttonVariants({ variant: 'secondary', size: 'sm' }),
-                                        'border-slate-700 bg-transparent text-slate-300 hover:border-slate-500',
-                                    )}
-                                >
-                                    Dashboard
-                                </Link>
-                            </div>
                         </div>
 
                         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">

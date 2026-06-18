@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, User } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { ChevronDown, LogOut, User, ArrowLeft } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/ui/cn';
@@ -33,11 +33,23 @@ interface TopBarProps {
 }
 
 function TopBar({ userEmail, plan, isSubscribed, onSignOut }: TopBarProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+
     // STRICT CHECK: If not subscribed, always show 'free' regardless of plan column
     const normalizedPlan = plan?.toLowerCase() as PlanTier | null;
     const tier: PlanTier = isSubscribed && normalizedPlan && ['starter', 'growth'].includes(normalizedPlan)
         ? normalizedPlan
         : 'free';
+
+    const handleBack = () => {
+        // If on quote detail page, hard refresh to /app/quotes/new to bypass cache
+        if (pathname?.startsWith('/quotes/')) {
+            window.location.href = '/app/quotes/new';
+        } else {
+            router.back();
+        }
+    };
 
     return (
         <header
@@ -48,16 +60,30 @@ function TopBar({ userEmail, plan, isSubscribed, onSignOut }: TopBarProps) {
                 'px-4 md:px-6',
             )}
         >
-            {/* Logo */}
-            <Link
-                href="/app/dashboard"
-                className="flex items-center gap-2 text-white"
-                aria-label="QuotePro — go to dashboard"
-            >
-                <span className="text-lg font-bold tracking-tight">
-                    Quote<span className="text-teal-400">Pro</span>
-                </span>
-            </Link>
+            {/* Logo with Back Arrow */}
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={handleBack}
+                    className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-lg',
+                        'text-slate-400 hover:bg-slate-800/60 hover:text-white',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500',
+                        'transition-colors',
+                    )}
+                    aria-label="Go back"
+                >
+                    <ArrowLeft size={18} aria-hidden="true" />
+                </button>
+                <Link
+                    href="/app/dashboard"
+                    className="flex items-center gap-2 text-white"
+                    aria-label="QuotePro — go to dashboard"
+                >
+                    <span className="text-lg font-bold tracking-tight">
+                        Quote<span className="text-teal-400">Pro</span>
+                    </span>
+                </Link>
+            </div>
 
             {/* Right: plan badge + account menu */}
             <div className="flex items-center gap-3">
