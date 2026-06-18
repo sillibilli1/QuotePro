@@ -314,6 +314,8 @@ export const generatedQuoteDataSchema = z
         payment_terms: z.string().trim().min(1),
         estimated_duration: z.string().trim().min(1),
         notes: z.string().trim().min(1).nullable(),
+        currency: z.string().optional(),
+        tax_rate: z.number().optional(),
     })
     .strict()
     .superRefine((quote, ctx) => {
