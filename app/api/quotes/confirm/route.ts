@@ -201,8 +201,9 @@ export async function POST(request: Request) {
         // 3. Prepare line_items as JSONB (matching the schema)
         const lineItemsJson = quoteData.line_items.map((item, index) => ({
             item_order: index,
-            title: item.unit.trim() || `Item ${index + 1}`,
+            title: item.description.trim() || `Item ${index + 1}`,
             description: item.description.trim(),
+            unit: item.unit.trim(),
             quantity: item.quantity,
             unit_price_aed: item.unit_rate_aed,
             total_price_aed: item.subtotal_aed,
