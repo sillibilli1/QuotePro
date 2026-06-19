@@ -59,14 +59,14 @@ export function getPricing(countryCode: string): PricingPlan {
         return {
             free: { quotes: 5 },
             starter: {
-                price: 299,
+                price: 99,
                 currency: 'AED',
                 stripeCurrency: 'aed',
                 priceId: process.env.STRIPE_PRICE_AED_STARTER!,
                 quotes: 30,
             },
             growth: {
-                price: 599,
+                price: 249,
                 currency: 'AED',
                 stripeCurrency: 'aed',
                 priceId: process.env.STRIPE_PRICE_AED_GROWTH!,
