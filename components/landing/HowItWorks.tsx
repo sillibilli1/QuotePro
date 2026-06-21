@@ -1,47 +1,50 @@
 'use client';
 
-import { MessageSquare, Sparkles, Share2 } from 'lucide-react';
+import { Sparkles, Eye, CheckCircle, Receipt } from 'lucide-react';
 
 const steps = [
     {
-        icon: MessageSquare,
-        number: '01',
-        title: 'Describe',
-        description:
-            'Type a short project brief in plain language — scope, materials, or job type. No forms to fill.',
-    },
-    {
         icon: Sparkles,
-        number: '02',
-        title: 'Generate',
+        title: 'AI Smart Quotes',
         description:
-            'AI builds a professional, itemised quote with quantities, rates, and VAT — ready in seconds.',
+            'Type a basic request, AI generates detailed line items with professional descriptions and pricing.',
     },
     {
-        icon: Share2,
-        number: '03',
-        title: 'Share',
+        icon: Eye,
+        title: 'Share & Track',
         description:
-            'Send a branded link via WhatsApp or email. Clients see a clean, read-only document — no login needed.',
+            'Send via WhatsApp or email, get notified instantly when your client opens it.',
+    },
+    {
+        icon: CheckCircle,
+        title: 'Client Accepts',
+        description:
+            'One-click approval from the client — no back-and-forth, no confusion.',
+    },
+    {
+        icon: Receipt,
+        title: 'Instant Invoice',
+        description:
+            'Convert the quote to an invoice with your bank details auto-filled. Done.',
     },
 ];
 
 export function HowItWorks() {
     return (
         <section id="how-it-works" className="bg-slate-900 px-4 py-20 sm:py-28">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
                 {/* Heading */}
                 <div className="mb-16 text-center reveal-up">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-teal-400">
-                        Simple process
+                        The Workflow
                     </p>
                     <h2 className="text-3xl font-bold text-white md:text-4xl">
-                        Three steps to a sent quote
+                        From Quote to Payment in 4 Steps
                     </h2>
                 </div>
 
                 {/* Steps grid */}
-                <div className="relative grid gap-8 md:grid-cols-3">
+                <div className="relative grid gap-8 md:grid-cols-4">
                     {/* Connector line — desktop only */}
                     <div
                         className="pointer-events-none absolute inset-x-0 top-10 hidden h-px bg-gradient-to-r from-transparent via-teal-600/40 to-transparent md:block"
@@ -52,7 +55,7 @@ export function HowItWorks() {
                         const Icon = step.icon;
                         return (
                             <div
-                                key={step.number}
+                                key={step.title}
                                 className="reveal-up flex flex-col items-center gap-5 text-center"
                                 style={{ animationDelay: `${i * 100}ms` }}
                             >

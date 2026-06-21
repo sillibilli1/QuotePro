@@ -12,9 +12,9 @@ const trustItems = [
 export function LandingHero() {
     return (
         <section className="relative overflow-hidden bg-slate-950 px-4 pb-20 pt-24 sm:pb-28 sm:pt-32">
-            {/* Ambient glow */}
+            {/* Enhanced radial gradient glow */}
             <div
-                className="pointer-events-none absolute -top-40 left-1/2 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-teal-600/10 blur-[120px]"
+                className="pointer-events-none absolute -top-40 left-1/2 h-[700px] w-[1000px] -translate-x-1/2 rounded-full bg-gradient-radial from-teal-600/20 via-teal-600/10 to-transparent blur-[140px]"
                 aria-hidden="true"
             />
 
@@ -24,21 +24,21 @@ export function LandingHero() {
                     {/* Eyebrow */}
                     <div className="inline-flex w-fit items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-teal-400">
                         <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                        QuotePro — AI-Powered Quoting
+                        QuotePro — Quote-to-Payment Suite
                     </div>
 
                     {/* Heading */}
                     <h1 className="text-display font-extrabold leading-[1.1] tracking-tight text-white">
-                        Generate professional quotes{' '}
+                        Win More Jobs.{' '}
                         <span className="bg-gradient-to-r from-teal-400 to-teal-300 bg-clip-text text-transparent">
-                            in 60 seconds
+                            Turn Quotes into Invoices in Seconds.
                         </span>
                     </h1>
 
                     {/* Subtext */}
                     <p className="text-lg leading-relaxed text-slate-400 sm:text-xl">
-                        Describe your project, let AI build a detailed line-item quote, then share
-                        a branded link — all before your client even picks up the phone.
+                        Stop juggling Excel and messy paper receipts. Let AI write your quotes, track client views,
+                        and convert them to professional invoices instantly. Built for modern contractors.
                     </p>
 
                     {/* CTAs */}
@@ -59,15 +59,20 @@ export function LandingHero() {
                         </a>
                     </div>
 
-                    {/* Trust line */}
-                    <ul className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
-                        {trustItems.map((item) => (
-                            <li key={item} className="flex items-center gap-1.5 text-sm text-slate-400">
-                                <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-500" aria-hidden="true" />
-                                {item}
-                            </li>
-                        ))}
-                    </ul>
+                    {/* Trust badges */}
+                    <div className="pt-2">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+                            Trusted by Service Professionals globally
+                        </p>
+                        <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                            {trustItems.map((item) => (
+                                <li key={item} className="flex items-center gap-1.5 text-sm text-slate-400">
+                                    <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-500" aria-hidden="true" />
+                                    {item}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
 
                 {/* ── Right: phone mockup ─────────────────────────────────────── */}
@@ -78,15 +83,15 @@ export function LandingHero() {
                             {/* Notch */}
                             <div className="mx-auto mb-2 mt-3 h-5 w-24 rounded-full bg-slate-700" />
 
-                            {/* Screen content — quote mockup */}
+                            {/* Screen content — quote to invoice mockup */}
                             <div className="overflow-hidden rounded-[1.8rem] bg-slate-950 p-4">
                                 <div className="mb-3 flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-teal-400">QuotePro</span>
-                                    <span className="rounded-full bg-teal-500/20 px-2 py-0.5 text-[10px] font-medium text-teal-300">
-                                        SENT
+                                    <span className="text-xs font-semibold text-teal-400">Quote → Invoice</span>
+                                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                                        ACCEPTED
                                     </span>
                                 </div>
-                                <p className="mb-1 text-[11px] text-slate-500">Project</p>
+                                <p className="mb-1 text-[11px] text-slate-500">Client</p>
                                 <p className="mb-3 text-sm font-semibold text-white">Apartment Renovation</p>
 
                                 {/* Line items */}
@@ -114,9 +119,9 @@ export function LandingHero() {
                                     </div>
                                 </div>
 
-                                {/* Share button */}
-                                <div className="mt-3 rounded-xl bg-teal-500 py-2 text-center">
-                                    <span className="text-xs font-bold text-slate-950">Share Quote</span>
+                                {/* Convert to Invoice button */}
+                                <div className="mt-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 py-2 text-center">
+                                    <span className="text-xs font-bold text-slate-950">Convert to Invoice →</span>
                                 </div>
                             </div>
 
