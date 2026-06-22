@@ -12,9 +12,34 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-    title: 'QuotePro',
-    description: 'AI-powered quotation generator for UAE contractors.',
+    metadataBase: new URL('https://www.quoteproapp.com'),
+    title: 'QuotePro - Professional Quotes & Invoices in Seconds',
+    description: 'Stop juggling Excel and messy receipts. QuotePro is the ultimate AI-powered quote and invoice generator for modern contractors. Create, track, and get paid faster.',
+    keywords: 'quote generator, invoice software, contractor CRM, AI quotes, UAE invoicing, estimate builder, automated billing',
+    openGraph: {
+        type: 'website',
+        url: 'https://www.quoteproapp.com',
+        title: 'QuotePro - Professional Quotes & Invoices in Seconds',
+        description: 'Stop juggling Excel and messy receipts. QuotePro is the ultimate AI-powered quote and invoice generator for modern contractors. Create, track, and get paid faster.',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'QuotePro - Professional Quotes & Invoices in Seconds',
+        description: 'Stop juggling Excel and messy receipts. QuotePro is the ultimate AI-powered quote and invoice generator for modern contractors. Create, track, and get paid faster.',
+    },
+    robots: {
+        index: true,
+        follow: true,
+    },
 };
+
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+};
+
+export const themeColor = '#000000';
 
 export default function RootLayout({
     children,
@@ -23,12 +48,6 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" className={`${inter.variable} scroll-smooth`}>
-            <head>
-                <meta
-                    name="viewport"
-                    content="width=device-width, initial-scale=1, maximum-scale=1"
-                />
-            </head>
             <body className="font-sans">
                 <ScrollRevealInit />
                 <AuthProvider>{children}</AuthProvider>

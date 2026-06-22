@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase/server';
 
 // Landing section components
 import { LandingHero } from '@/components/landing/LandingHero';
+import { VideoDemoSection } from '@/components/landing/VideoDemoSection';
 import { HowItWorks } from '@/components/landing/HowItWorks';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
+import { BeforeAfterSection } from '@/components/landing/BeforeAfterSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { SocialProof } from '@/components/landing/SocialProof';
 import { FAQAccordion } from '@/components/landing/FAQAccordion';
@@ -43,11 +45,17 @@ export default async function LandingPage() {
             {/* HERO */}
             <LandingHero />
 
+            {/* VIDEO DEMO */}
+            <VideoDemoSection />
+
             {/* HOW IT WORKS */}
             <HowItWorks />
 
             {/* FEATURES */}
             <FeaturesSection />
+
+            {/* BEFORE & AFTER */}
+            <BeforeAfterSection />
 
             {/* PRICING — prices always come from getPricing(), never hardcoded */}
             <PricingSection pricing={pricing} />

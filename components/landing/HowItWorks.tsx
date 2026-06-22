@@ -43,35 +43,32 @@ export function HowItWorks() {
                     </h2>
                 </div>
 
-                {/* Steps grid */}
-                <div className="relative grid gap-8 md:grid-cols-4">
-                    {/* Connector line — desktop only */}
-                    <div
-                        className="pointer-events-none absolute inset-x-0 top-10 hidden h-px bg-gradient-to-r from-transparent via-teal-600/40 to-transparent md:block"
-                        aria-hidden="true"
-                    />
-
+                {/* Horizontal 4-Column Grid */}
+                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                     {steps.map((step, i) => {
                         const Icon = step.icon;
+
                         return (
                             <div
                                 key={step.title}
-                                className="reveal-up flex flex-col items-center gap-5 text-center"
+                                className="reveal-up flex flex-col items-center text-center gap-4"
                                 style={{ animationDelay: `${i * 100}ms` }}
                             >
-                                {/* Icon circle */}
+                                {/* Icon Circle */}
                                 <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-teal-500/30 bg-teal-500/10">
-                                    <Icon className="h-8 w-8 text-teal-400" aria-hidden="true" />
-                                    {/* Step number badge */}
-                                    <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-teal-500 text-[10px] font-bold text-slate-950">
+                                    <Icon className="h-9 w-9 text-teal-400" aria-hidden="true" />
+                                    <span className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full bg-teal-500 text-xs font-bold text-slate-950">
                                         {i + 1}
                                     </span>
                                 </div>
 
-                                <div>
-                                    <h3 className="mb-2 text-lg font-semibold text-white">{step.title}</h3>
-                                    <p className="text-sm leading-relaxed text-slate-400">{step.description}</p>
-                                </div>
+                                {/* Title */}
+                                <h3 className="text-xl font-bold text-white">{step.title}</h3>
+
+                                {/* Description */}
+                                <p className="text-sm leading-relaxed text-slate-400">
+                                    {step.description}
+                                </p>
                             </div>
                         );
                     })}

@@ -143,7 +143,7 @@ export function PricingCard({ tier, pricing, currentPlan, isPublic = false, bill
                 'relative flex flex-col rounded-3xl border p-7 transition-all duration-300',
                 'hover:shadow-xl motion-reduce:transition-none',
                 isStarter
-                    ? 'border-teal-500/50 bg-slate-900 ring-1 ring-teal-500/20 hover:shadow-teal-500/10 md:scale-[1.03]'
+                    ? 'border-teal-500/50 bg-slate-900 ring-1 ring-teal-500/20 shadow-[0_0_25px_rgba(20,184,166,0.15)] hover:shadow-[0_0_35px_rgba(20,184,166,0.25)] md:scale-105'
                     : 'border-white/10 bg-slate-900/60 hover:border-white/20',
             ].join(' ')}
         >
